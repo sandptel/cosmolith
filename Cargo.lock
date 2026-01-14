@@ -941,6 +941,7 @@ dependencies = [
  "cosmic-comp-config",
  "cosmic-config 0.1.0 (git+https://github.com/pop-os/libcosmic)",
  "libcosmic",
+ "serde",
 ]
 
 [[package]]
