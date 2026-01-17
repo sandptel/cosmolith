@@ -1,58 +1,105 @@
-use cosmic_comp_config::input::InputConfig;
 use cosmic_config::{Config, ConfigGet};
+use serde_json::Value;
 use std::{
+	collections::HashMap,
 	error::Error,
-	sync::{mpsc, Arc, Mutex},
+	sync::mpsc,
 	time::Duration,
 };
 
-/// Watch Cosmic compositor configuration and optionally emit verbose logs.
-pub fn run_watcher(debug: bool) -> Result<(), Box<dyn Error>> {
-	// Load the compositor config (stores touchpad & mouse settings).
-	let config = Config::new("com.system76.CosmicComp", 1)?;
-	let mut last_touchpad: InputConfig = config
-		.get("input_touchpad")
-		.unwrap_or_else(|_| InputConfig::default());
-	if debug {
-		println!("Initial touchpad config:\n{:#?}", last_touchpad);
-	}
+use crate::cli::DEFAULT_NAMESPACES;
 
-	// Channel used to receive change notifications from the watcher callback.
-	let (tx, rx) = mpsc::channel::<Vec<String>>();
-	let tx = Arc::new(Mutex::new(tx));
+#[derive(Debug)]
+struct Change {
+	namespace: String,
+	keys: Vec<String>,
+}
 
-	// Keep the watcher alive for the lifetime of the program.
-	let _watcher = config.watch({
-		let tx = Arc::clone(&tx);
-		move |_cfg, keys| {
-			if let Ok(sender) = tx.lock() {
-				let _ = sender.send(keys.to_vec());
+/// Watch one or more Cosmic configuration namespaces and emit verbose logs.
+/// - When debug is enabled, prints only actual value changes (old -> new).
+/// - Defaults to all known namespaces unless a subset is provided.
+pub fn run_watcher(debug: bool, namespaces: &[String]) -> Result<(), Box<dyn Error>> {
+	let watch_list: Vec<String> = if namespaces.is_empty() {
+		DEFAULT_NAMESPACES.iter().map(|s| s.to_string()).collect()
+	} else {
+		namespaces.to_vec()
+	};
+
+	let (tx, rx) = mpsc::channel::<Change>();
+
+	let mut configs: HashMap<String, Config> = HashMap::new();
+	let mut watchers = Vec::new();
+	let mut last_values: HashMap<String, HashMap<String, Value>> = HashMap::new();
+
+	for ns in watch_list {
+		match Config::new(&ns, 1) {
+			Ok(config) => {
+				let tx_clone = tx.clone();
+				let ns_clone = ns.clone();
+				let watcher = config.watch(move |_cfg, keys| {
+					let _ = tx_clone.send(Change {
+						namespace: ns_clone.clone(),
+						keys: keys.to_vec(),
+					});
+				})?;
+
+				if debug {
+					println!("Watching namespace: {ns}");
+				}
+
+				configs.insert(ns.clone(), config);
+				watchers.push(watcher);
+			}
+			Err(err) => {
+				eprintln!("Failed to watch {ns}: {err}");
 			}
 		}
-	})?;
-
-	if debug {
-		println!("Watching for touchpad configuration changes…");
 	}
 
+	// Process change notifications.
 	loop {
 		match rx.recv_timeout(Duration::from_secs(5)) {
-			Ok(keys) => {
-				if keys.iter().any(|k| k == "input_touchpad") {
-					match config.get::<InputConfig>("input_touchpad") {
-						Ok(updated) if updated != last_touchpad => {
-							if debug {
-								println!("Touchpad config updated:\n{:#?}", updated);
+			Ok(change) => {
+				if let Some(config) = configs.get(&change.namespace) {
+					for key in change.keys {
+						match config.get::<Value>(&key) {
+							Ok(new_val) => {
+								let ns_entry = last_values.entry(change.namespace.clone()).or_default();
+								match ns_entry.get(&key) {
+									Some(old) if old == &new_val => {
+										// No actual change in value; ignore.
+									}
+									Some(old) => {
+										if debug {
+											println!(
+												"[{ns}] {} changed:\nold: {:#?}\nnew: {:#?}",
+                                                key,
+												old,
+												new_val,
+												ns = change.namespace
+											);
+										}
+									}
+									None => {
+										if debug {
+											println!(
+												"[{ns}] {key} set:\nnew: {:#?}",
+												new_val,
+												ns = change.namespace
+											);
+										}
+									}
+								}
+								ns_entry.insert(key, new_val);
 							}
-							last_touchpad = updated;
+							Err(err) => eprintln!(
+								"[{ns}] failed to read {key}: {err}",
+								ns = change.namespace
+							),
 						}
-						Ok(_) => {
-							if debug {
-								println!("Touchpad config rewritten with identical data.");
-							}
-						}
-						Err(err) => eprintln!("Failed to read updated touchpad config: {err}"),
 					}
+				} else if debug {
+					println!("[{ns}] change received but config handle missing", ns = change.namespace);
 				}
 			}
 			Err(mpsc::RecvTimeoutError::Timeout) => continue,
@@ -63,5 +110,7 @@ pub fn run_watcher(debug: bool) -> Result<(), Box<dyn Error>> {
 		}
 	}
 
+	// Keep watchers alive for lifetime of process.
+	drop(watchers);
 	Ok(())
 }
