@@ -8,3 +8,4 @@ libcosmic = { git = "https://github.com/pop-os/libcosmic", branch = "master" }
 cosmic-config = { git = "https://github.com/pop-os/libcosmic" }
 cosmic-comp-config = { git = "https://github.com/pop-os/cosmic-comp" }
 serde = "1.0.228"
+clap = { version = "4.5.54", features = ["derive"] }
