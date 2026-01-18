@@ -1,116 +1,108 @@
-use cosmic_config::{Config, ConfigGet};
 use serde_json::Value;
-use std::{
-	collections::HashMap,
-	error::Error,
-	sync::mpsc,
-	time::Duration,
-};
+use treediff::diff;
 
-use crate::cli::DEFAULT_NAMESPACES;
-
-#[derive(Debug)]
-struct Change {
-	namespace: String,
-	keys: Vec<String>,
+pub fn print_set(ns: &str, key: &str, new_val: &Value) {
+	println!("[{ns}] {key} set:");
+	print_value_lines("  ", new_val);
 }
 
-/// Watch one or more Cosmic configuration namespaces and emit verbose logs.
-/// - When debug is enabled, prints only actual value changes (old -> new).
-/// - Defaults to all known namespaces unless a subset is provided.
-pub fn run_watcher(debug: bool, namespaces: &[String]) -> Result<(), Box<dyn Error>> {
-	let watch_list: Vec<String> = if namespaces.is_empty() {
-		DEFAULT_NAMESPACES.iter().map(|s| s.to_string()).collect()
-	} else {
-		namespaces.to_vec()
-	};
+pub fn print_diffs(ns: &str, key: &str, old: &Value, new_val: &Value) {
+	let mut delegate = DiffPrinter::new(ns, key);
+	diff(old, new_val, &mut delegate);
+	delegate.flush();
+}
 
-	let (tx, rx) = mpsc::channel::<Change>();
+struct DiffPrinter<'a> {
+	ns: &'a str,
+	root: &'a str,
+	stack: Vec<String>,
+	changes: Vec<String>,
+}
 
-	let mut configs: HashMap<String, Config> = HashMap::new();
-	let mut watchers = Vec::new();
-	let mut last_values: HashMap<String, HashMap<String, Value>> = HashMap::new();
-
-	for ns in watch_list {
-		match Config::new(&ns, 1) {
-			Ok(config) => {
-				let tx_clone = tx.clone();
-				let ns_clone = ns.clone();
-				let watcher = config.watch(move |_cfg, keys| {
-					let _ = tx_clone.send(Change {
-						namespace: ns_clone.clone(),
-						keys: keys.to_vec(),
-					});
-				})?;
-
-				if debug {
-					println!("Watching namespace: {ns}");
-				}
-
-				configs.insert(ns.clone(), config);
-				watchers.push(watcher);
-			}
-			Err(err) => {
-				eprintln!("Failed to watch {ns}: {err}");
-			}
+impl<'a> DiffPrinter<'a> {
+	fn new(ns: &'a str, root: &'a str) -> Self {
+		Self {
+			ns,
+			root,
+			stack: Vec::new(),
+			changes: Vec::new(),
 		}
 	}
 
-	// Process change notifications.
-	loop {
-		match rx.recv_timeout(Duration::from_secs(5)) {
-			Ok(change) => {
-				if let Some(config) = configs.get(&change.namespace) {
-					for key in change.keys {
-						match config.get::<Value>(&key) {
-							Ok(new_val) => {
-								let ns_entry = last_values.entry(change.namespace.clone()).or_default();
-								match ns_entry.get(&key) {
-									Some(old) if old == &new_val => {
-										// No actual change in value; ignore.
-									}
-									Some(old) => {
-										if debug {
-											println!(
-												"[{ns}] {} changed:\nold: {:#?}\nnew: {:#?}",
-                                                key,
-												old,
-												new_val,
-												ns = change.namespace
-											);
-										}
-									}
-									None => {
-										if debug {
-											println!(
-												"[{ns}] {key} set:\nnew: {:#?}",
-												new_val,
-												ns = change.namespace
-											);
-										}
-									}
-								}
-								ns_entry.insert(key, new_val);
-							}
-							Err(err) => eprintln!(
-								"[{ns}] failed to read {key}: {err}",
-								ns = change.namespace
-							),
-						}
-					}
-				} else if debug {
-					println!("[{ns}] change received but config handle missing", ns = change.namespace);
-				}
-			}
-			Err(mpsc::RecvTimeoutError::Timeout) => continue,
-			Err(mpsc::RecvTimeoutError::Disconnected) => {
-				eprintln!("Watcher channel closed; exiting.");
-				break;
-			}
+	fn flush(self) {
+		if self.changes.is_empty() {
+			return;
+		}
+		println!("[{ns}] {root} changed:", ns = self.ns, root = self.root);
+		for line in self.changes {
+			println!("  {line}");
 		}
 	}
 
-	// Keep watchers alive for lifetime of process.
-	drop(watchers);
-	Ok(())
+	fn path_with<K: ToString>(&self, key: Option<&K>) -> String {
+		let mut parts = Vec::with_capacity(1 + self.stack.len() + key.map(|_| 1).unwrap_or(0));
+		parts.push(self.root.to_string());
+		parts.extend(self.stack.iter().cloned());
+		if let Some(k) = key {
+			parts.push(k.to_string());
+		}
+		parts.join(".")
+	}
+}
+
+impl<'a, K> treediff::Delegate<'a, K, Value> for DiffPrinter<'_>
+where
+	K: ToString + Clone,
+{
+	fn push(&mut self, k: &K) {
+		self.stack.push(k.to_string());
+	}
+
+	fn pop(&mut self) {
+		self.stack.pop();
+	}
+
+	fn added<'b>(&mut self, k: &'b K, v: &'a Value) {
+		let path = self.path_with(Some(k));
+		self.changes.push(format!("+ {path}: {v:?}"));
+	}
+
+	fn removed<'b>(&mut self, k: &'b K, v: &'a Value) {
+		let path = self.path_with(Some(k));
+		self.changes.push(format!("- {path}: {v:?}"));
+	}
+
+	fn modified(&mut self, old: &'a Value, new: &'a Value) {
+		let path = self.path_with::<String>(None);
+		self.changes
+			.push(format!("~ {path}: {old:?} -> {new:?}"));
+	}
+}
+
+fn print_value_lines(indent: &str, val: &Value) {
+	match val {
+		Value::Object(map) => {
+			println!("{indent}{{");
+			for (k, v) in map {
+				print!("{indent}  {k}: ");
+				print_value_inline(&format!("{indent}  "), v);
+			}
+			println!("{indent}}}");
+		}
+		_ => println!("{indent}{val:?}"),
+	}
+}
+
+fn print_value_inline(indent: &str, val: &Value) {
+	match val {
+		Value::Object(map) => {
+			println!("{{");
+			for (k, v) in map {
+				print!("{indent}  {k}: ");
+				print_value_inline(&format!("{indent}  "), v);
+			}
+			println!("{indent}}}");
+		}
+		_ => println!("{val:?}"),
+	}
 }

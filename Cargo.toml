@@ -10,4 +10,4 @@ cosmic-comp-config = { git = "https://github.com/pop-os/cosmic-comp" }
 serde = "1.0.228"
 clap = { version = "4.5.54", features = ["derive"] }
 serde_json = "1.0"
-treediff = "5.0.0"
+treediff = { version = "5.0.0", features = ["with-serde-json"] }

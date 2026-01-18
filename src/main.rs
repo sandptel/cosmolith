@@ -1,8 +1,6 @@
-
 // src/main.rs
-mod cli;
-mod debug;
+use cosmolith::cli::Cli;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    cli::Cli::run()
+    Cli::run()
 }

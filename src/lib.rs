@@ -1,7 +1,10 @@
-mod watcher;
-mod reactor;
-mod event;
-mod compositor;
+pub mod watcher;
+pub mod reactor;
+pub mod event;
+pub mod compositor;
+pub mod cli;
+pub mod debug;
+pub mod namespaces;
 
 // The flow of the program is as follows:
 // 1. The watcher module sets up configuration watchers using cosmic-config
