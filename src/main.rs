@@ -7,7 +7,7 @@ use std::{
 };
 
 mod watcher;
-use watcher::inputs::start_input_watcher;
+use watcher::input::start_input_watcher;
 mod event;
 use event::Event;
 

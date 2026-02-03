@@ -1,3 +1,3 @@
-pub mod inputs;
+pub mod input;
 
-pub use inputs::start_input_watcher;
+pub use input::start_input_watcher;

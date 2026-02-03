@@ -31,7 +31,7 @@ pub fn start_input_watcher(
         move |cfg: &Config, keys| {
             if let Ok(_sender) = tx.lock() {
                 if let Ok(mut state) = state.lock() {
-                    from_input_state(&mut state, cfg, keys);
+                    state.from(cfg, keys);
                 }
             }
         }
@@ -40,41 +40,39 @@ pub fn start_input_watcher(
     Ok(Box::new(watcher))
 }
 
-pub fn from_input_state(state: &mut InputState, cfg: &Config, keys: &[String]) -> Vec<Event> {
-    for key in keys {
-        match key.as_str() {
-            "input_touchpad" => {
-                match cfg.get::<InputConfig>(key) {
+impl InputState {
+    pub fn from(&mut self, cfg: &Config, keys: &[String]) -> Vec<Event> {
+        for key in keys {
+            match key.as_str() {
+                "input_touchpad" => match cfg.get::<InputConfig>(key) {
                     Ok(new_config) => {
-                        if let Some(old) = state.touchpad.clone() {
+                        if let Some(old) = self.touchpad.clone() {
                             from_touchpad(old, new_config.clone());
                         }
-                        state.touchpad = Some(new_config);
+                        self.touchpad = Some(new_config);
                     }
                     Err(e) => {
                         println!("Failed to get changed config due to the error: {:?}", e);
                     }
-                }
-            }
-            "input_default" => {
-                match cfg.get::<InputConfig>(key) {
+                },
+                "input_default" => match cfg.get::<InputConfig>(key) {
                     Ok(new_config) => {
-                        if let Some(old) = state.mouse.clone() {
-                            from_touchpad(old, new_config.clone());
+                        if let Some(old) = self.mouse.clone() {
+                            from_mouse(old, new_config.clone());
                         }
-                        state.mouse = Some(new_config);
+                        self.mouse = Some(new_config);
                     }
                     Err(e) => {
                         println!("Failed to get changed config due to the error: {:?}", e);
                     }
+                },
+                x => {
+                    println!("Unknown key: {}", x);
                 }
-            }
-            x => {
-                println!("Unknown key: {}", x);
             }
         }
+        vec![]
     }
-    vec![]
 }
 
 pub fn from_touchpad(old: InputConfig, new: InputConfig) -> Vec<Event> {
@@ -142,6 +140,78 @@ pub fn from_touchpad(old: InputConfig, new: InputConfig) -> Vec<Event> {
     if old.map_to_output != new.map_to_output {
         println!(
             "touchpad.map_to_output changed: {:?} -> {:?}",
+            old.map_to_output, new.map_to_output
+        );
+    }
+
+    vec![]
+}
+
+pub fn from_mouse(old: InputConfig, new: InputConfig) -> Vec<Event> {
+    if old == new {
+        return vec![];
+    }
+
+    if old.state != new.state {
+        println!("mouse.state changed: {:?} -> {:?}", old.state, new.state);
+    }
+    if old.acceleration != new.acceleration {
+        println!(
+            "mouse.acceleration changed: {:?} -> {:?}",
+            old.acceleration, new.acceleration
+        );
+    }
+    if old.calibration != new.calibration {
+        println!(
+            "mouse.calibration changed: {:?} -> {:?}",
+            old.calibration, new.calibration
+        );
+    }
+    if old.click_method != new.click_method {
+        println!(
+            "mouse.click_method changed: {:?} -> {:?}",
+            old.click_method, new.click_method
+        );
+    }
+    if old.disable_while_typing != new.disable_while_typing {
+        println!(
+            "mouse.disable_while_typing changed: {:?} -> {:?}",
+            old.disable_while_typing, new.disable_while_typing
+        );
+    }
+    if old.left_handed != new.left_handed {
+        println!(
+            "mouse.left_handed changed: {:?} -> {:?}",
+            old.left_handed, new.left_handed
+        );
+    }
+    if old.middle_button_emulation != new.middle_button_emulation {
+        println!(
+            "mouse.middle_button_emulation changed: {:?} -> {:?}",
+            old.middle_button_emulation, new.middle_button_emulation
+        );
+    }
+    if old.rotation_angle != new.rotation_angle {
+        println!(
+            "mouse.rotation_angle changed: {:?} -> {:?}",
+            old.rotation_angle, new.rotation_angle
+        );
+    }
+    if old.scroll_config != new.scroll_config {
+        println!(
+            "mouse.scroll_config changed: {:?} -> {:?}",
+            old.scroll_config, new.scroll_config
+        );
+    }
+    if old.tap_config != new.tap_config {
+        println!(
+            "mouse.tap_config changed: {:?} -> {:?}",
+            old.tap_config, new.tap_config
+        );
+    }
+    if old.map_to_output != new.map_to_output {
+        println!(
+            "mouse.map_to_output changed: {:?} -> {:?}",
             old.map_to_output, new.map_to_output
         );
     }
