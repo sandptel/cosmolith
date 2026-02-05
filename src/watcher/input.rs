@@ -11,6 +11,12 @@ use cosmic_config::{Config, ConfigGet};
 use crate::event::Event;
 use std::sync::{Arc, Mutex};
 
+// #todo : Find all the keys linked to  com.system76.CosmicComp and catch those and read events
+// 1. input_touchpad
+// 2. input_default
+// 3. xkb_config : #todo
+// 4. ?
+
 pub const INPUTNAMESPACE: &str = "com.system76.CosmicComp";
 pub const VERSION: u64 = 1;
 
