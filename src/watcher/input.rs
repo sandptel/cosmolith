@@ -11,10 +11,15 @@ use cosmic_config::{Config, ConfigGet};
 use crate::event::Event;
 use std::sync::{Arc, Mutex};
 
+pub const INPUTNAMESPACE: &str = "com.system76.CosmicComp";
+pub const VERSION: u64 = 1;
+
 pub struct InputState {
     touchpad: Option<InputConfig>,
     mouse: Option<InputConfig>,
-    // Will be added later after identifying its type
+    // #todo: Find which exact type is used to emit and monitor changes for this
+    // Add that here and then
+    // 1. pattern match / 2. add events / 3. impl from() / 4. Events -> Ipc Calls Mapping
     // keyboard:
 }
 
@@ -140,7 +145,7 @@ pub enum MouseEvent {
 pub fn start_input_watcher(
     tx: &Arc<Mutex<Sender<Event>>>,
 ) -> Result<Box<dyn std::any::Any + Send>, Box<dyn Error>> {
-    let config = Config::new("com.system76.CosmicComp", 1)?;
+    let config = Config::new(INPUTNAMESPACE, VERSION)?;
     let state = Arc::new(Mutex::new(InputState {
         touchpad: config.get::<InputConfig>("input_touchpad").ok(),
         mouse: config.get::<InputConfig>("input_default").ok(),
