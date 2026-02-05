@@ -50,9 +50,15 @@ pub enum TouchpadEvent {
     RotationAngle(Option<u32>),
     /// Scroll configuration.
     /// ScrollMethod::NoScroll | TwoFinger | Edge | OnButtonDown.
+    ///
+    /// TODO: Redundant when all sub-field events (ScrollMethod/NaturalScroll/ScrollFactor/ScrollButton)
+    /// are emitted. IPC handlers should ignore this if equivalent fine-grained events are present.
     ScrollConfig(Option<ScrollConfig>),
     /// Tap configuration.
     /// TapButtonMap::LeftRightMiddle | LeftMiddleRight.
+    ///
+    /// TODO: Redundant when all sub-field events (TapEnabled/TapButtonMap/TapDrag/TapDragLock)
+    /// are emitted. IPC handlers should ignore this if equivalent fine-grained events are present.
     TapConfig(Option<TapConfig>),
     /// Map to output name (display ID).
     MapToOutput(Option<String>),
@@ -107,9 +113,15 @@ pub enum MouseEvent {
     RotationAngle(Option<u32>),
     /// Scroll configuration.
     /// ScrollMethod::NoScroll | TwoFinger | Edge | OnButtonDown.
+    ///
+    /// TODO: Redundant when all sub-field events (ScrollMethod/NaturalScroll/ScrollFactor/ScrollButton)
+    /// are emitted. IPC handlers should ignore this if equivalent fine-grained events are present.
     ScrollConfig(Option<ScrollConfig>),
     /// Tap configuration.
     /// TapButtonMap::LeftRightMiddle | LeftMiddleRight.
+    ///
+    /// TODO: Redundant when all sub-field events are emitted. IPC handlers should ignore this
+    /// if equivalent fine-grained events are present.
     TapConfig(Option<TapConfig>),
     /// Map to output name (display ID).
     MapToOutput(Option<String>),
@@ -134,14 +146,19 @@ pub fn start_input_watcher(
         mouse: config.get::<InputConfig>("input_default").ok(),
     }));
 
-    // // Keep the watcher alive for the lifetime of the program.
+    // Keep the watcher alive for the lifetime of the program.
     let watcher = config.watch({
         let tx = Arc::clone(&tx);
         let state = Arc::clone(&state);
         move |cfg: &Config, keys| {
-            if let Ok(_sender) = tx.lock() {
+            if let Ok(sender) = tx.lock() {
                 if let Ok(mut state) = state.lock() {
-                    state.from(cfg, keys);
+                    let events = state.from(cfg, keys);
+                    for event in events {
+                        if let Err(err) = sender.send(event) {
+                            eprintln!("Failed to send input event: {err}");
+                        }
+                    }
                 }
             }
         }
@@ -152,39 +169,40 @@ pub fn start_input_watcher(
 
 impl InputState {
     pub fn from(&mut self, cfg: &Config, keys: &[String]) -> Vec<Event> {
+        let mut events = Vec::new();
         for key in keys {
             match key.as_str() {
                 "input_touchpad" => match cfg.get::<InputConfig>(key) {
                     Ok(new_config) => {
                         if let Some(old) = self.touchpad.clone() {
-                            from_touchpad(old, new_config.clone());
+                            events.extend(from_touchpad(old, new_config.clone()));
                         }
                         self.touchpad = Some(new_config);
                     }
                     Err(e) => {
-                        println!("Failed to get changed config due to the error: {:?}", e);
+                        eprintln!("Failed to get changed config due to the error: {:?}", e);
                     }
                 },
                 "input_default" => match cfg.get::<InputConfig>(key) {
                     Ok(new_config) => {
                         if let Some(old) = self.mouse.clone() {
-                            from_mouse(old, new_config.clone());
+                            events.extend(from_mouse(old, new_config.clone()));
                         }
                         self.mouse = Some(new_config);
                     }
                     Err(e) => {
-                        println!("Failed to get changed config due to the error: {:?}", e);
+                        eprintln!("Failed to get changed config due to the error: {:?}", e);
                     }
                 },
                 x => {
-                    println!(
+                    eprintln!(
                         "Unknown key found in Input (com.system76.CosmicComp): {}",
                         x
                     );
                 }
             }
         }
-        vec![]
+        events
     }
 }
 
@@ -198,14 +216,12 @@ pub fn from_touchpad(old: InputConfig, new: InputConfig) -> Vec<Event> {
     if old.state != new.state {
         // Unreachable: cosmic-settings currently does not produce this event
         let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::State(new.state)));
-        println!("{:?}", event);
         events.push(event);
     }
     if old.acceleration != new.acceleration {
         let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::Acceleration(
             new.acceleration.clone(),
         )));
-        println!("{:?}", event);
         events.push(event);
     }
     if old.calibration != new.calibration {
@@ -213,28 +229,24 @@ pub fn from_touchpad(old: InputConfig, new: InputConfig) -> Vec<Event> {
         let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::Calibration(
             new.calibration,
         )));
-        println!("{:?}", event);
         events.push(event);
     }
     if old.click_method != new.click_method {
         let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::ClickMethod(
             new.click_method,
         )));
-        println!("{:?}", event);
         events.push(event);
     }
     if old.disable_while_typing != new.disable_while_typing {
         let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::DisableWhileTyping(
             new.disable_while_typing,
         )));
-        println!("{:?}", event);
         events.push(event);
     }
     if old.left_handed != new.left_handed {
         let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::LeftHanded(
             new.left_handed,
         )));
-        println!("{:?}", event);
         events.push(event);
     }
     if old.middle_button_emulation != new.middle_button_emulation {
@@ -242,7 +254,6 @@ pub fn from_touchpad(old: InputConfig, new: InputConfig) -> Vec<Event> {
         let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::MiddleButtonEmulation(
             new.middle_button_emulation,
         )));
-        println!("{:?}", event);
         events.push(event);
     }
     if old.rotation_angle != new.rotation_angle {
@@ -250,14 +261,15 @@ pub fn from_touchpad(old: InputConfig, new: InputConfig) -> Vec<Event> {
         let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::RotationAngle(
             new.rotation_angle,
         )));
-        println!("{:?}", event);
         events.push(event);
     }
     if old.scroll_config != new.scroll_config {
         let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::ScrollConfig(
             new.scroll_config.clone(),
         )));
-        println!("{:?}", event);
+
+        // TODO: Redundant when all sub-field events are emitted. IPC handlers should ignore this
+        // if equivalent fine-grained events are present.
         events.push(event);
 
         if let (Some(old_scroll), Some(new_scroll)) = (old.scroll_config, new.scroll_config.clone())
@@ -266,14 +278,12 @@ pub fn from_touchpad(old: InputConfig, new: InputConfig) -> Vec<Event> {
                 let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::ScrollMethod(
                     new_scroll.method,
                 )));
-                println!("{:?}", event);
                 events.push(event);
             }
             if old_scroll.natural_scroll != new_scroll.natural_scroll {
                 let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::NaturalScroll(
                     new_scroll.natural_scroll,
                 )));
-                println!("{:?}", event);
                 events.push(event);
             }
             if old_scroll.scroll_button != new_scroll.scroll_button {
@@ -281,14 +291,12 @@ pub fn from_touchpad(old: InputConfig, new: InputConfig) -> Vec<Event> {
                 let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::ScrollButton(
                     new_scroll.scroll_button,
                 )));
-                println!("{:?}", event);
                 events.push(event);
             }
             if old_scroll.scroll_factor != new_scroll.scroll_factor {
                 let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::ScrollFactor(
                     new_scroll.scroll_factor,
                 )));
-                println!("{:?}", event);
                 events.push(event);
             }
         }
@@ -298,7 +306,9 @@ pub fn from_touchpad(old: InputConfig, new: InputConfig) -> Vec<Event> {
         let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::TapConfig(
             new.tap_config.clone(),
         )));
-        println!("{:?}", event);
+
+        // TODO: Redundant when all sub-field events are emitted. IPC handlers should ignore this
+        // if equivalent fine-grained events are present.
         events.push(event);
 
         if let (Some(old_tap), Some(new_tap)) = (old.tap_config, new.tap_config.clone()) {
@@ -306,7 +316,6 @@ pub fn from_touchpad(old: InputConfig, new: InputConfig) -> Vec<Event> {
                 let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::TapEnabled(
                     new_tap.enabled,
                 )));
-                println!("{:?}", event);
                 events.push(event);
             }
             if old_tap.button_map != new_tap.button_map {
@@ -314,14 +323,12 @@ pub fn from_touchpad(old: InputConfig, new: InputConfig) -> Vec<Event> {
                 let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::TapButtonMap(
                     new_tap.button_map,
                 )));
-                println!("{:?}", event);
                 events.push(event);
             }
             if old_tap.drag != new_tap.drag {
                 // Unreachable: cosmic-settings currently does not produce this event
                 let event =
                     Event::Input(InputEvent::TouchPad(TouchpadEvent::TapDrag(new_tap.drag)));
-                println!("{:?}", event);
                 events.push(event);
             }
             if old_tap.drag_lock != new_tap.drag_lock {
@@ -329,7 +336,6 @@ pub fn from_touchpad(old: InputConfig, new: InputConfig) -> Vec<Event> {
                 let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::TapDragLock(
                     new_tap.drag_lock,
                 )));
-                println!("{:?}", event);
                 events.push(event);
             }
         }
@@ -339,7 +345,6 @@ pub fn from_touchpad(old: InputConfig, new: InputConfig) -> Vec<Event> {
         let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::MapToOutput(
             new.map_to_output,
         )));
-        println!("{:?}", event);
         events.push(event);
     }
 
@@ -356,30 +361,22 @@ pub fn from_mouse(old: InputConfig, new: InputConfig) -> Vec<Event> {
     if old.state != new.state {
         // Unreachable: cosmic-settings currently does not produce this event
         let event = Event::Input(InputEvent::Mouse(MouseEvent::State(new.state)));
-        println!("{:?}", event);
         events.push(event);
     }
     if old.acceleration != new.acceleration {
         let event = Event::Input(InputEvent::Mouse(MouseEvent::Acceleration(
             new.acceleration.clone(),
         )));
-        println!("{:?}", event);
         events.push(event);
     }
     if old.calibration != new.calibration {
         // Unreachable: cosmic-settings currently does not produce this event
-        let event = Event::Input(InputEvent::Mouse(MouseEvent::Calibration(
-            new.calibration,
-        )));
-        println!("{:?}", event);
+        let event = Event::Input(InputEvent::Mouse(MouseEvent::Calibration(new.calibration)));
         events.push(event);
     }
     if old.click_method != new.click_method {
         // Unreachable: cosmic-settings currently does not produce this event
-        let event = Event::Input(InputEvent::Mouse(MouseEvent::ClickMethod(
-            new.click_method,
-        )));
-        println!("{:?}", event);
+        let event = Event::Input(InputEvent::Mouse(MouseEvent::ClickMethod(new.click_method)));
         events.push(event);
     }
     if old.disable_while_typing != new.disable_while_typing {
@@ -387,14 +384,10 @@ pub fn from_mouse(old: InputConfig, new: InputConfig) -> Vec<Event> {
         let event = Event::Input(InputEvent::Mouse(MouseEvent::DisableWhileTyping(
             new.disable_while_typing,
         )));
-        println!("{:?}", event);
         events.push(event);
     }
     if old.left_handed != new.left_handed {
-        let event = Event::Input(InputEvent::Mouse(MouseEvent::LeftHanded(
-            new.left_handed,
-        )));
-        println!("{:?}", event);
+        let event = Event::Input(InputEvent::Mouse(MouseEvent::LeftHanded(new.left_handed)));
         events.push(event);
     }
     if old.middle_button_emulation != new.middle_button_emulation {
@@ -402,7 +395,6 @@ pub fn from_mouse(old: InputConfig, new: InputConfig) -> Vec<Event> {
         let event = Event::Input(InputEvent::Mouse(MouseEvent::MiddleButtonEmulation(
             new.middle_button_emulation,
         )));
-        println!("{:?}", event);
         events.push(event);
     }
     if old.rotation_angle != new.rotation_angle {
@@ -410,14 +402,15 @@ pub fn from_mouse(old: InputConfig, new: InputConfig) -> Vec<Event> {
         let event = Event::Input(InputEvent::Mouse(MouseEvent::RotationAngle(
             new.rotation_angle,
         )));
-        println!("{:?}", event);
         events.push(event);
     }
     if old.scroll_config != new.scroll_config {
         let event = Event::Input(InputEvent::Mouse(MouseEvent::ScrollConfig(
             new.scroll_config.clone(),
         )));
-        println!("{:?}", event);
+
+        // TODO: Redundant when all sub-field events are emitted. IPC handlers should ignore this
+        // if equivalent fine-grained events are present.
         events.push(event);
 
         if let (Some(old_scroll), Some(new_scroll)) = (old.scroll_config, new.scroll_config.clone())
@@ -427,14 +420,12 @@ pub fn from_mouse(old: InputConfig, new: InputConfig) -> Vec<Event> {
                 let event = Event::Input(InputEvent::Mouse(MouseEvent::ScrollMethod(
                     new_scroll.method,
                 )));
-                println!("{:?}", event);
                 events.push(event);
             }
             if old_scroll.natural_scroll != new_scroll.natural_scroll {
                 let event = Event::Input(InputEvent::Mouse(MouseEvent::NaturalScroll(
                     new_scroll.natural_scroll,
                 )));
-                println!("{:?}", event);
                 events.push(event);
             }
             if old_scroll.scroll_button != new_scroll.scroll_button {
@@ -442,14 +433,12 @@ pub fn from_mouse(old: InputConfig, new: InputConfig) -> Vec<Event> {
                 let event = Event::Input(InputEvent::Mouse(MouseEvent::ScrollButton(
                     new_scroll.scroll_button,
                 )));
-                println!("{:?}", event);
                 events.push(event);
             }
             if old_scroll.scroll_factor != new_scroll.scroll_factor {
                 let event = Event::Input(InputEvent::Mouse(MouseEvent::ScrollFactor(
                     new_scroll.scroll_factor,
                 )));
-                println!("{:?}", event);
                 events.push(event);
             }
         }
@@ -459,7 +448,9 @@ pub fn from_mouse(old: InputConfig, new: InputConfig) -> Vec<Event> {
         let event = Event::Input(InputEvent::Mouse(MouseEvent::TapConfig(
             new.tap_config.clone(),
         )));
-        println!("{:?}", event);
+
+        // TODO: Redundant when all sub-field events are emitted. IPC handlers should ignore this
+        // if equivalent fine-grained events are present.
         events.push(event);
     }
     if old.map_to_output != new.map_to_output {
@@ -467,7 +458,6 @@ pub fn from_mouse(old: InputConfig, new: InputConfig) -> Vec<Event> {
         let event = Event::Input(InputEvent::Mouse(MouseEvent::MapToOutput(
             new.map_to_output,
         )));
-        println!("{:?}", event);
         events.push(event);
     }
 
