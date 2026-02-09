@@ -17,7 +17,9 @@ pub struct Hyprland {
     pub instance_signature: Option<String>,
 }
 
-// #todo: Restructure
+// #todo: Restructure:
+// 1. Think of a better way to pass on errors
+// 2. Trace Error Location: Which Line should be looked at just by looking at the logs.
 impl Hyprland {
     pub fn new() -> Self {
         Self {
@@ -114,9 +116,19 @@ impl Input for Hyprland {
         Ok(())
     }
 
-    fn touchpad_acceleration(&self, _accel: Option<AccelConfig>) -> InputResult {
-        // TODO: No touchpad-specific acceleration keyword in Hyprland.
-        dbg!("Hyprland: touchpad acceleration not supported");
+    fn touchpad_acceleration(&self, accel: Option<AccelConfig>) -> InputResult {
+        // Mapped to general input sensitivity + accel_profile
+        if let Some(accel) = accel {
+            self.set_keyword("input:sensitivity", accel.speed)?;
+            if let Some(profile) = accel.profile {
+                let value = match profile {
+                    AccelProfile::Flat => "flat",
+                    AccelProfile::Adaptive => "adaptive",
+                    _ => "adaptive",
+                };
+                self.set_keyword("input:accel_profile", value)?;
+            }
+        }
         Ok(())
     }
 
@@ -138,10 +150,9 @@ impl Input for Hyprland {
         self.set_bool("input:touchpad:disable_while_typing", enabled)
     }
 
-    fn touchpad_left_handed(&self, _enabled: Option<bool>) -> InputResult {
-        // TODO: Hyprland does not expose a touchpad-specific left-handed option.
-        dbg!("Hyprland: touchpad left-handed not supported");
-        Ok(())
+    fn touchpad_left_handed(&self, enabled: Option<bool>) -> InputResult {
+        // Mapped to general input left_handed
+        self.set_bool("input:left_handed", enabled)
     }
 
     fn touchpad_middle_button_emulation(&self, enabled: Option<bool>) -> InputResult {
@@ -154,15 +165,22 @@ impl Input for Hyprland {
         Ok(())
     }
 
-    fn touchpad_scroll_config(&self, _config: Option<ScrollConfig>) -> InputResult {
-        // TODO: Redundant when fine-grained events are emitted.
-        dbg!("Hyprland: touchpad scroll_config is redundant");
+    fn touchpad_scroll_config(&self, config: Option<ScrollConfig>) -> InputResult {
+        // Split into scroll_factor + natural_scroll
+        if let Some(config) = config {
+            if let Some(factor) = config.scroll_factor {
+                self.set_keyword("input:touchpad:scroll_factor", factor)?;
+            }
+            self.set_bool("input:touchpad:natural_scroll", config.natural_scroll)?;
+        }
         Ok(())
     }
 
-    fn touchpad_scroll_method(&self, _method: Option<ScrollMethod>) -> InputResult {
-        // TODO: Hyprland touchpad does not expose scroll_method, only scroll_factor.
-        dbg!("Hyprland: touchpad scroll_method not supported");
+    fn touchpad_scroll_method(&self, method: Option<ScrollMethod>) -> InputResult {
+        if let Some(method) = method {
+            let value = Self::map_scroll_method(&method);
+            return self.set_keyword("input:scroll_method", value);
+        }
         Ok(())
     }
 
@@ -183,9 +201,13 @@ impl Input for Hyprland {
         Ok(())
     }
 
-    fn touchpad_tap_config(&self, _config: Option<TapConfig>) -> InputResult {
-        // TODO: Redundant when fine-grained events are emitted.
-        dbg!("Hyprland: touchpad tap_config is redundant");
+    fn touchpad_tap_config(&self, config: Option<TapConfig>) -> InputResult {
+        // Split into tap-to-click, tap-and-drag, drag_lock
+        if let Some(config) = config {
+            self.set_keyword("input:touchpad:tap-to-click", config.enabled)?;
+            self.set_keyword("input:touchpad:tap-and-drag", config.drag)?;
+            self.set_keyword("input:touchpad:drag_lock", config.drag_lock)?;
+        }
         Ok(())
     }
 

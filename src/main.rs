@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if let Some(ref comp) = compositor {
                     match comp.apply_event(event) {
                         Ok(()) => {
-                            println!("successfull.");
+                            // println!("successfull.");
                         }
                         Err(err) => {
                             eprintln!("Failed to apply event: {err}");
