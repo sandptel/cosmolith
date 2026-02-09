@@ -4,294 +4,312 @@ use hyprland::keyword::Keyword;
 
 use crate::compositor::input::{Input, InputResult};
 use crate::compositor::{Compositor, CompositorResult};
-use crate::event::input::InputEvent;
 use crate::event::Event;
+use crate::event::input::InputEvent;
 
 use cosmic_comp_config::input::{
-	AccelConfig, AccelProfile, ClickMethod, DeviceState, ScrollConfig, ScrollMethod, TapButtonMap,
-	TapConfig,
+    AccelConfig, AccelProfile, ClickMethod, DeviceState, ScrollConfig, ScrollMethod, TapButtonMap,
+    TapConfig,
 };
 
 #[derive(Debug, Default)]
 pub struct Hyprland {
-	pub instance_signature: Option<String>,
+    pub instance_signature: Option<String>,
 }
 
+// #todo: Restructure
 impl Hyprland {
-	pub fn new() -> Self {
-		Self {
-			instance_signature: None,
-		}
-	}
+    pub fn new() -> Self {
+        Self {
+            instance_signature: None,
+        }
+    }
 
-	fn set_keyword(&self, key: &str, value: impl ToString) -> InputResult {
-		Keyword::set(key, value.to_string())
-			.map_err(|err| Box::new(err) as Box<dyn std::error::Error + Send + Sync>)
-	}
+    fn set_keyword(&self, key: &str, value: impl ToString) -> InputResult {
+        Keyword::set(key, value.to_string())
+            .map_err(|err| Box::new(err) as Box<dyn std::error::Error + Send + Sync>)
+    }
 
-	fn set_bool(&self, key: &str, value: Option<bool>) -> InputResult {
-		match value {
-			Some(true) => self.set_keyword(key, "true"),
-			Some(false) => self.set_keyword(key, "false"),
-			None => Ok(()),
-		}
-	}
+    fn set_bool(&self, key: &str, value: Option<bool>) -> InputResult {
+        match value {
+            Some(true) => self.set_keyword(key, "true"),
+            Some(false) => self.set_keyword(key, "false"),
+            None => Ok(()),
+        }
+    }
 
-	fn todo_err(&self, message: &str) -> InputResult {
-		Err(std::io::Error::new(std::io::ErrorKind::Other, message).into())
-	}
+    fn map_scroll_method(method: &ScrollMethod) -> &'static str {
+        match method {
+            ScrollMethod::TwoFinger => "2fg",
+            ScrollMethod::Edge => "edge",
+            ScrollMethod::OnButtonDown => "on_button",
+            ScrollMethod::NoScroll => "none",
+            _ => "none",
+        }
+    }
 
-	fn map_scroll_method(method: &ScrollMethod) -> &'static str {
-		match method {
-			ScrollMethod::TwoFinger => "2fg",
-			ScrollMethod::Edge => "edge",
-			ScrollMethod::OnButtonDown => "on_button",
-			ScrollMethod::NoScroll => "none",
-			_ => "none",
-		}
-	}
+    fn map_click_method(method: &ClickMethod) -> bool {
+        match method {
+            ClickMethod::Clickfinger => true,
+            ClickMethod::ButtonAreas => false,
+            _ => false,
+        }
+    }
 
-	fn map_click_method(method: &ClickMethod) -> bool {
-		match method {
-			ClickMethod::Clickfinger => true,
-			ClickMethod::ButtonAreas => false,
-			_ => false,
-		}
-	}
-
-	fn map_tap_button_map(map: &TapButtonMap) -> &'static str {
-		match map {
-			TapButtonMap::LeftRightMiddle => "lrm",
-			TapButtonMap::LeftMiddleRight => "lmr",
-			_ => "lrm",
-		}
-	}
+    fn map_tap_button_map(map: &TapButtonMap) -> &'static str {
+        match map {
+            TapButtonMap::LeftRightMiddle => "lrm",
+            TapButtonMap::LeftMiddleRight => "lmr",
+            _ => "lrm",
+        }
+    }
 }
 
 impl Compositor for Hyprland {
-	fn init(&mut self) -> CompositorResult {
-		self.instance_signature = env::var("HYPRLAND_INSTANCE_SIGNATURE").ok();
-		if self.instance_signature.is_none() {
-			return Err(std::io::Error::new(
-				std::io::ErrorKind::NotFound,
-				"HYPRLAND_INSTANCE_SIGNATURE not set",
-			)
-			.into());
-		}
-		Ok(())
-	}
+    fn init(&mut self) -> CompositorResult {
+        self.instance_signature = env::var("HYPRLAND_INSTANCE_SIGNATURE").ok();
+        if self.instance_signature.is_none() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "HYPRLAND_INSTANCE_SIGNATURE not set",
+            )
+            .into());
+        }
+        Ok(())
+    }
 
-	fn name(&self) -> &'static str {
-		"Hyprland"
-	}
+    fn name(&self) -> &'static str {
+        "Hyprland"
+    }
 
-	fn is_running(&self) -> bool {
-		env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok()
-	}
+    fn is_running(&self) -> bool {
+        env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok()
+    }
 
-	fn supports(&self, event: &Event) -> bool {
-		matches!(event, Event::Input(_))
-	}
+    fn supports(&self, event: &Event) -> bool {
+        matches!(event, Event::Input(_))
+    }
 
-	fn apply_event(&self, event: Event) -> CompositorResult {
-		match event {
-			Event::Input(InputEvent::TouchPad(ev)) => self.apply_touchpad_event(ev),
-			Event::Input(InputEvent::Mouse(ev)) => self.apply_mouse_event(ev),
-		}
-	}
+    fn apply_event(&self, event: Event) -> CompositorResult {
+        match event {
+            Event::Input(InputEvent::TouchPad(ev)) => self.apply_touchpad_event(ev),
+            Event::Input(InputEvent::Mouse(ev)) => self.apply_mouse_event(ev),
+        }
+    }
 
-	fn reload(&self) -> CompositorResult {
-		Ok(())
-	}
+    fn reload(&self) -> CompositorResult {
+        Ok(())
+    }
 
-	fn shutdown(&self) -> CompositorResult {
-		Ok(())
-	}
+    fn shutdown(&self) -> CompositorResult {
+        Ok(())
+    }
 }
 
+// #todo: For all the todos -> Find equivalent functions in documentation and update
 impl Input for Hyprland {
-	fn touchpad_state(&self, _state: DeviceState) -> InputResult {
-		// TODO: Hyprland does not expose a direct enable/disable for touchpad.
-		self.todo_err("Hyprland: touchpad enable/disable not supported")
-	}
+    fn touchpad_state(&self, _state: DeviceState) -> InputResult {
+        // TODO: Hyprland does not expose a direct enable/disable for touchpad.
+        dbg!("Hyprland: touchpad enable/disable not supported");
+        Ok(())
+    }
 
-	fn touchpad_acceleration(&self, _accel: Option<AccelConfig>) -> InputResult {
-		// TODO: No touchpad-specific acceleration keyword in Hyprland.
-		self.todo_err("Hyprland: touchpad acceleration not supported")
-	}
+    fn touchpad_acceleration(&self, _accel: Option<AccelConfig>) -> InputResult {
+        // TODO: No touchpad-specific acceleration keyword in Hyprland.
+        dbg!("Hyprland: touchpad acceleration not supported");
+        Ok(())
+    }
 
-	fn touchpad_calibration(&self, _cal: Option<[f32; 6]>) -> InputResult {
-		// TODO: No touchpad calibration keyword in Hyprland.
-		self.todo_err("Hyprland: touchpad calibration not supported")
-	}
+    fn touchpad_calibration(&self, _cal: Option<[f32; 6]>) -> InputResult {
+        // TODO: No touchpad calibration keyword in Hyprland.
+        dbg!("Hyprland: touchpad calibration not supported");
+        Ok(())
+    }
 
-	fn touchpad_click_method(&self, method: Option<ClickMethod>) -> InputResult {
-		if let Some(method) = method {
-			let enabled = Self::map_click_method(&method);
-			return self.set_keyword("input:touchpad:clickfinger_behavior", enabled);
-		}
-		Ok(())
-	}
+    fn touchpad_click_method(&self, method: Option<ClickMethod>) -> InputResult {
+        if let Some(method) = method {
+            let enabled = Self::map_click_method(&method);
+            return self.set_keyword("input:touchpad:clickfinger_behavior", enabled);
+        }
+        Ok(())
+    }
 
-	fn touchpad_disable_while_typing(&self, enabled: Option<bool>) -> InputResult {
-		self.set_bool("input:touchpad:disable_while_typing", enabled)
-	}
+    fn touchpad_disable_while_typing(&self, enabled: Option<bool>) -> InputResult {
+        self.set_bool("input:touchpad:disable_while_typing", enabled)
+    }
 
-	fn touchpad_left_handed(&self, _enabled: Option<bool>) -> InputResult {
-		// TODO: Hyprland does not expose a touchpad-specific left-handed option.
-		self.todo_err("Hyprland: touchpad left-handed not supported")
-	}
+    fn touchpad_left_handed(&self, _enabled: Option<bool>) -> InputResult {
+        // TODO: Hyprland does not expose a touchpad-specific left-handed option.
+        dbg!("Hyprland: touchpad left-handed not supported");
+        Ok(())
+    }
 
-	fn touchpad_middle_button_emulation(&self, enabled: Option<bool>) -> InputResult {
-		self.set_bool("input:touchpad:middle_button_emulation", enabled)
-	}
+    fn touchpad_middle_button_emulation(&self, enabled: Option<bool>) -> InputResult {
+        self.set_bool("input:touchpad:middle_button_emulation", enabled)
+    }
 
-	fn touchpad_rotation_angle(&self, _angle: Option<u32>) -> InputResult {
-		// TODO: No touchpad rotation keyword in Hyprland.
-		self.todo_err("Hyprland: touchpad rotation not supported")
-	}
+    fn touchpad_rotation_angle(&self, _angle: Option<u32>) -> InputResult {
+        // TODO: No touchpad rotation keyword in Hyprland.
+        dbg!("Hyprland: touchpad rotation not supported");
+        Ok(())
+    }
 
-	fn touchpad_scroll_config(&self, _config: Option<ScrollConfig>) -> InputResult {
-		// TODO: Redundant when fine-grained events are emitted.
-		self.todo_err("Hyprland: touchpad scroll_config is redundant")
-	}
+    fn touchpad_scroll_config(&self, _config: Option<ScrollConfig>) -> InputResult {
+        // TODO: Redundant when fine-grained events are emitted.
+        dbg!("Hyprland: touchpad scroll_config is redundant");
+        Ok(())
+    }
 
-	fn touchpad_scroll_method(&self, _method: Option<ScrollMethod>) -> InputResult {
-		// TODO: Hyprland touchpad does not expose scroll_method, only scroll_factor.
-		self.todo_err("Hyprland: touchpad scroll_method not supported")
-	}
+    fn touchpad_scroll_method(&self, _method: Option<ScrollMethod>) -> InputResult {
+        // TODO: Hyprland touchpad does not expose scroll_method, only scroll_factor.
+        dbg!("Hyprland: touchpad scroll_method not supported");
+        Ok(())
+    }
 
-	fn touchpad_natural_scroll(&self, enabled: Option<bool>) -> InputResult {
-		self.set_bool("input:touchpad:natural_scroll", enabled)
-	}
+    fn touchpad_natural_scroll(&self, enabled: Option<bool>) -> InputResult {
+        self.set_bool("input:touchpad:natural_scroll", enabled)
+    }
 
-	fn touchpad_scroll_factor(&self, factor: Option<f64>) -> InputResult {
-		if let Some(factor) = factor {
-			return self.set_keyword("input:touchpad:scroll_factor", factor);
-		}
-		Ok(())
-	}
+    fn touchpad_scroll_factor(&self, factor: Option<f64>) -> InputResult {
+        if let Some(factor) = factor {
+            return self.set_keyword("input:touchpad:scroll_factor", factor);
+        }
+        Ok(())
+    }
 
-	fn touchpad_scroll_button(&self, _button: Option<u32>) -> InputResult {
-		// TODO: No touchpad scroll_button keyword in Hyprland.
-		self.todo_err("Hyprland: touchpad scroll_button not supported")
-	}
+    fn touchpad_scroll_button(&self, _button: Option<u32>) -> InputResult {
+        // TODO: No touchpad scroll_button keyword in Hyprland.
+        dbg!("Hyprland: touchpad scroll_button not supported");
+        Ok(())
+    }
 
-	fn touchpad_tap_config(&self, _config: Option<TapConfig>) -> InputResult {
-		// TODO: Redundant when fine-grained events are emitted.
-		self.todo_err("Hyprland: touchpad tap_config is redundant")
-	}
+    fn touchpad_tap_config(&self, _config: Option<TapConfig>) -> InputResult {
+        // TODO: Redundant when fine-grained events are emitted.
+        dbg!("Hyprland: touchpad tap_config is redundant");
+        Ok(())
+    }
 
-	fn touchpad_tap_enabled(&self, enabled: bool) -> InputResult {
-		self.set_keyword("input:touchpad:tap-to-click", enabled)
-	}
+    fn touchpad_tap_enabled(&self, enabled: bool) -> InputResult {
+        self.set_keyword("input:touchpad:tap-to-click", enabled)
+    }
 
-	fn touchpad_tap_button_map(&self, map: Option<TapButtonMap>) -> InputResult {
-		if let Some(map) = map {
-			let value = Self::map_tap_button_map(&map);
-			return self.set_keyword("input:touchpad:tap_button_map", value);
-		}
-		Ok(())
-	}
+    fn touchpad_tap_button_map(&self, map: Option<TapButtonMap>) -> InputResult {
+        if let Some(map) = map {
+            let value = Self::map_tap_button_map(&map);
+            return self.set_keyword("input:touchpad:tap_button_map", value);
+        }
+        Ok(())
+    }
 
-	fn touchpad_tap_drag(&self, enabled: bool) -> InputResult {
-		self.set_keyword("input:touchpad:tap-and-drag", enabled)
-	}
+    fn touchpad_tap_drag(&self, enabled: bool) -> InputResult {
+        self.set_keyword("input:touchpad:tap-and-drag", enabled)
+    }
 
-	fn touchpad_tap_drag_lock(&self, enabled: bool) -> InputResult {
-		self.set_keyword("input:touchpad:drag_lock", enabled)
-	}
+    fn touchpad_tap_drag_lock(&self, enabled: bool) -> InputResult {
+        self.set_keyword("input:touchpad:drag_lock", enabled)
+    }
 
-	fn touchpad_map_to_output(&self, _output: Option<String>) -> InputResult {
-		// TODO: Hyprland touchpad mapping to output is not exposed.
-		self.todo_err("Hyprland: touchpad map_to_output not supported")
-	}
+    fn touchpad_map_to_output(&self, _output: Option<String>) -> InputResult {
+        // TODO: Hyprland touchpad mapping to output is not exposed.
+        dbg!("Hyprland: touchpad map_to_output not supported");
+        Ok(())
+    }
 
-	fn mouse_state(&self, _state: DeviceState) -> InputResult {
-		// TODO: Hyprland does not expose a direct enable/disable for mouse.
-		self.todo_err("Hyprland: mouse enable/disable not supported")
-	}
+    fn mouse_state(&self, _state: DeviceState) -> InputResult {
+        // TODO: Hyprland does not expose a direct enable/disable for mouse.
+        dbg!("Hyprland: mouse enable/disable not supported");
+        Ok(())
+    }
 
-	fn mouse_acceleration(&self, accel: Option<AccelConfig>) -> InputResult {
-		if let Some(accel) = accel {
-			self.set_keyword("input:sensitivity", accel.speed)?;
-			if let Some(profile) = accel.profile {
-				let value = match profile {
-					AccelProfile::Flat => "flat",
-					AccelProfile::Adaptive => "adaptive",
-					_ => "adaptive",
-				};
-				self.set_keyword("input:accel_profile", value)?;
-			}
-		}
-		Ok(())
-	}
+    fn mouse_acceleration(&self, accel: Option<AccelConfig>) -> InputResult {
+        if let Some(accel) = accel {
+            self.set_keyword("input:sensitivity", accel.speed)?;
+            if let Some(profile) = accel.profile {
+                let value = match profile {
+                    AccelProfile::Flat => "flat",
+                    AccelProfile::Adaptive => "adaptive",
+                    _ => "adaptive",
+                };
+                self.set_keyword("input:accel_profile", value)?;
+            }
+        }
+        Ok(())
+    }
 
-	fn mouse_calibration(&self, _cal: Option<[f32; 6]>) -> InputResult {
-		// TODO: No mouse calibration keyword in Hyprland.
-		self.todo_err("Hyprland: mouse calibration not supported")
-	}
+    fn mouse_calibration(&self, _cal: Option<[f32; 6]>) -> InputResult {
+        // TODO: No mouse calibration keyword in Hyprland.
+        dbg!("Hyprland: mouse calibration not supported");
+        Ok(())
+    }
 
-	fn mouse_click_method(&self, _method: Option<ClickMethod>) -> InputResult {
-		// TODO: No mouse click method keyword in Hyprland.
-		self.todo_err("Hyprland: mouse click_method not supported")
-	}
+    fn mouse_click_method(&self, _method: Option<ClickMethod>) -> InputResult {
+        // TODO: No mouse click method keyword in Hyprland.
+        dbg!("Hyprland: mouse click_method not supported");
+        Ok(())
+    }
 
-	fn mouse_disable_while_typing(&self, _enabled: Option<bool>) -> InputResult {
-		// TODO: No mouse-specific disable_while_typing in Hyprland.
-		self.todo_err("Hyprland: mouse disable_while_typing not supported")
-	}
+    fn mouse_disable_while_typing(&self, _enabled: Option<bool>) -> InputResult {
+        // TODO: No mouse-specific disable_while_typing in Hyprland.
+        dbg!("Hyprland: mouse disable_while_typing not supported");
+        Ok(())
+    }
 
-	fn mouse_left_handed(&self, enabled: Option<bool>) -> InputResult {
-		self.set_bool("input:left_handed", enabled)
-	}
+    fn mouse_left_handed(&self, enabled: Option<bool>) -> InputResult {
+        self.set_bool("input:left_handed", enabled)
+    }
 
-	fn mouse_middle_button_emulation(&self, _enabled: Option<bool>) -> InputResult {
-		// TODO: No mouse middle-button emulation keyword in Hyprland.
-		self.todo_err("Hyprland: mouse middle_button_emulation not supported")
-	}
+    fn mouse_middle_button_emulation(&self, _enabled: Option<bool>) -> InputResult {
+        // TODO: No mouse middle-button emulation keyword in Hyprland.
+        dbg!("Hyprland: mouse middle_button_emulation not supported");
+        Ok(())
+    }
 
-	fn mouse_rotation_angle(&self, _angle: Option<u32>) -> InputResult {
-		// TODO: No mouse rotation keyword in Hyprland.
-		self.todo_err("Hyprland: mouse rotation not supported")
-	}
+    fn mouse_rotation_angle(&self, _angle: Option<u32>) -> InputResult {
+        // TODO: No mouse rotation keyword in Hyprland.
+        dbg!("Hyprland: mouse rotation not supported");
+        Ok(())
+    }
 
-	fn mouse_scroll_config(&self, _config: Option<ScrollConfig>) -> InputResult {
-		// TODO: Redundant when fine-grained events are emitted.
-		self.todo_err("Hyprland: mouse scroll_config is redundant")
-	}
+    fn mouse_scroll_config(&self, _config: Option<ScrollConfig>) -> InputResult {
+        // TODO: Redundant when fine-grained events are emitted.
+        dbg!("Hyprland: mouse scroll_config is redundant");
+        Ok(())
+    }
 
-	fn mouse_scroll_method(&self, method: Option<ScrollMethod>) -> InputResult {
-		if let Some(method) = method {
-			let value = Self::map_scroll_method(&method);
-			return self.set_keyword("input:scroll_method", value);
-		}
-		Ok(())
-	}
+    fn mouse_scroll_method(&self, method: Option<ScrollMethod>) -> InputResult {
+        if let Some(method) = method {
+            let value = Self::map_scroll_method(&method);
+            return self.set_keyword("input:scroll_method", value);
+        }
+        Ok(())
+    }
 
-	fn mouse_natural_scroll(&self, enabled: Option<bool>) -> InputResult {
-		self.set_bool("input:natural_scroll", enabled)
-	}
+    fn mouse_natural_scroll(&self, enabled: Option<bool>) -> InputResult {
+        self.set_bool("input:natural_scroll", enabled)
+    }
 
-	fn mouse_scroll_factor(&self, _factor: Option<f64>) -> InputResult {
-		// TODO: No mouse scroll_factor keyword in Hyprland.
-		self.todo_err("Hyprland: mouse scroll_factor not supported")
-	}
+    fn mouse_scroll_factor(&self, _factor: Option<f64>) -> InputResult {
+        // TODO: No mouse scroll_factor keyword in Hyprland.
+        dbg!("Hyprland: mouse scroll_factor not supported");
+        Ok(())
+    }
 
-	fn mouse_scroll_button(&self, button: Option<u32>) -> InputResult {
-		if let Some(button) = button {
-			return self.set_keyword("input:scroll_button", button);
-		}
-		Ok(())
-	}
+    fn mouse_scroll_button(&self, button: Option<u32>) -> InputResult {
+        if let Some(button) = button {
+            return self.set_keyword("input:scroll_button", button);
+        }
+        Ok(())
+    }
 
-	fn mouse_tap_config(&self, _config: Option<TapConfig>) -> InputResult {
-		// TODO: Mouse tap config is not supported in Hyprland.
-		self.todo_err("Hyprland: mouse tap_config not supported")
-	}
+    fn mouse_tap_config(&self, _config: Option<TapConfig>) -> InputResult {
+        // TODO: Mouse tap config is not supported in Hyprland.
+        dbg!("Hyprland: mouse tap_config not supported");
+        Ok(())
+    }
 
-	fn mouse_map_to_output(&self, _output: Option<String>) -> InputResult {
-		// TODO: Hyprland does not expose mouse mapping to output.
-		self.todo_err("Hyprland: mouse map_to_output not supported")
-	}
+    fn mouse_map_to_output(&self, _output: Option<String>) -> InputResult {
+        // TODO: Hyprland does not expose mouse mapping to output.
+        dbg!("Hyprland: mouse map_to_output not supported");
+        Ok(())
+    }
 }

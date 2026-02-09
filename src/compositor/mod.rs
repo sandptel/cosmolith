@@ -26,3 +26,18 @@ pub trait Compositor {
     /// Optional shutdown/cleanup hook.
     fn shutdown(&self) -> CompositorResult;
 }
+
+pub fn init_compositor(desktop: crate::identifier::Desktop) -> Option<Box<dyn Compositor>> {
+    match desktop {
+        crate::identifier::Desktop::Hyprland => {
+            let mut compositor = hyprland::Hyprland::new();
+            if compositor.init().is_ok() {
+                return Some(Box::new(compositor));
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+
