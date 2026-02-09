@@ -11,6 +11,9 @@ use watcher::input::start_input_watcher;
 mod event;
 use event::Event;
 
+mod identifier;
+use identifier::get_current_session;
+
 fn main() -> Result<(), Box<dyn Error>> {
     let _config = Config::new("com.system76.CosmicComp", 1)?;
     // Channel used to receive change notifications from the watcher callback.
@@ -19,10 +22,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let _watcher = start_input_watcher(&tx)?;
 
-    // loop {
+    println!("Watching for configuration changes…");
 
-    // }
-    println!("Watching for touchpad configuration changes…");
+    let session = get_current_session();
+    println!("You are currently running: {:?}", session);
+
     loop {
         match rx.recv_timeout(Duration::from_secs(5)) {
             Ok(event) => {

@@ -26,8 +26,6 @@ pub struct InputState {
     // keyboard:
 }
 
-
-
 pub fn start_input_watcher(
     tx: &Arc<Mutex<Sender<Event>>>,
 ) -> Result<Box<dyn std::any::Any + Send>, Box<dyn Error>> {
