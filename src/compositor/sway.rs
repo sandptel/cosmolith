@@ -103,6 +103,23 @@ impl Sway {
         let val = Self::bool_to_sway(value);
         self.run_command(format!("input {target} {setting} {val}"))
     }
+
+    fn normalize_kb_options(options: &str) -> String {
+        // Sway expects a clean comma-separated list without leading commas or empty segments.
+        options
+            .trim_matches(|c: char| c == ',' || c.is_whitespace())
+            .split(',')
+            .filter_map(|part| {
+                let trimmed = part.trim();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed)
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+    }
 }
 
 impl Compositor for Sway {
@@ -143,7 +160,41 @@ impl Compositor for Sway {
     }
 }
 
+// #todo: For all Ok(()) if there exists a if let Some(), 
+// define a error variants for such errors and send upwards
 impl Input for Sway {
+    fn keyboard_rules(&self, rules: String) -> InputResult {
+        self.run_command(format!("input type:keyboard xkb_rules {rules}"))
+    }
+
+    fn keyboard_model(&self, model: String) -> InputResult {
+        self.run_command(format!("input type:keyboard xkb_model {model}"))
+    }
+
+    fn keyboard_layout(&self, layout: String) -> InputResult {
+        self.run_command(format!("input type:keyboard xkb_layout {layout}"))
+    }
+
+    fn keyboard_variant(&self, variant: String) -> InputResult {
+        self.run_command(format!("input type:keyboard xkb_variant {variant}"))
+    }
+
+    fn keyboard_options(&self, options: Option<String>) -> InputResult {
+        if let Some(options) = options {
+            let cleaned = Self::normalize_kb_options(&options);
+            return self.run_command(format!("input type:keyboard xkb_options {cleaned}"));
+        }
+        Ok(())
+    }
+
+    fn keyboard_repeat_delay(&self, delay: u32) -> InputResult {
+        self.run_command(format!("input type:keyboard repeat_delay {delay}"))
+    }
+
+    fn keyboard_repeat_rate(&self, rate: u32) -> InputResult {
+        self.run_command(format!("input type:keyboard repeat_rate {rate}"))
+    }
+
     // fn touchpad_state(&self, _state: DeviceState) -> InputResult {
     //     // TODO: Requires device-specific identifiers; DisabledOnExternalMouse not supported.
     //     dbg!("Sway: touchpad enable/disable not supported via type:touchpad");
