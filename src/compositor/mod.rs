@@ -5,6 +5,7 @@ use crate::event::Event;
 use std::error::Error;
 pub type CompositorResult = Result<(), Box<dyn Error + Send + Sync>>;
 /// Central compositor interface used by the dispatcher.
+#[allow(unused)]
 pub trait Compositor {
     /// Initialize compositor integration (set up IPC, validate availability).
     fn init(&mut self) -> CompositorResult;

@@ -1,15 +1,12 @@
-use std::env;
-
-use hyprland::keyword::Keyword;
-
 use crate::compositor::input::{Input, InputResult};
 use crate::compositor::{Compositor, CompositorResult};
 use crate::event::Event;
-use crate::event::input::{InputEvent, KeyboardEvent};
+use crate::event::input::InputEvent;
+use hyprland::keyword::Keyword;
+use std::env;
 
 use cosmic_comp_config::input::{
-    AccelConfig, AccelProfile, ClickMethod, DeviceState, ScrollConfig, ScrollMethod, TapButtonMap,
-    TapConfig,
+    AccelConfig, AccelProfile, ClickMethod, ScrollConfig, ScrollMethod, TapButtonMap, TapConfig,
 };
 
 #[derive(Debug, Default)]
@@ -65,7 +62,6 @@ impl Hyprland {
             _ => "lrm",
         }
     }
-
 }
 
 impl Compositor for Hyprland {
