@@ -335,4 +335,44 @@ impl Input for Hyprland {
     //     dbg!("Hyprland: mouse map_to_output not supported");
     //     Ok(())
     // }
+
+    fn keyboard_rules(&self, rules: String) -> InputResult {
+        // TODO: Hyprland does not expose an IPC keyword for XKB rules.
+        dbg!("Hyprland: keyboard rules not supported", rules);
+        Ok(())
+    }
+
+    fn keyboard_layout(&self, layout: String) -> InputResult {
+        // TODO: Hyprland does not expose an IPC keyword for XKB layout.
+        dbg!("Hyprland: keyboard layout not supported", layout);
+        Ok(())
+    }
+
+    fn keyboard_model(&self, model: String) -> InputResult {
+        // TODO: Hyprland does not expose an IPC keyword for XKB model.
+        dbg!("Hyprland: keyboard model not supported", model);
+        Ok(())
+    }
+
+    fn keyboard_options(&self, options: Option<String>) -> InputResult {
+        if let Some(options) = options {
+            let cleaned = options.trim_start_matches(',');
+            return self.set_keyword("input:kb_options", cleaned);
+        }
+        Ok(())
+    }
+
+    fn keyboard_variant(&self, variant: String) -> InputResult {
+        // TODO: Hyprland does not expose an IPC keyword for XKB variant.
+        dbg!("Hyprland: keyboard variant not supported", variant);
+        Ok(())
+    }
+
+    fn keyboard_repeat_delay(&self, delay: u32) -> InputResult {
+        return self.set_keyword("input:repeat_delay", delay);
+    }
+
+    fn keyboard_repeat_rate(&self, rate: u32) -> InputResult {
+        return self.set_keyword("input:repeat_rate", rate);
+    }
 }

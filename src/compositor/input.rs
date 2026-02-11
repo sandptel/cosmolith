@@ -1,7 +1,6 @@
 use std::error::Error;
 
 use crate::event::input::{KeyboardEvent, MouseEvent, TouchpadEvent};
-use cosmic_comp_config::XkbConfig;
 
 use cosmic_comp_config::input::{
     AccelConfig, ClickMethod, DeviceState, ScrollConfig, ScrollMethod, TapButtonMap, TapConfig,
