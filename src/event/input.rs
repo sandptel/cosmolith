@@ -1,3 +1,4 @@
+use cosmic_comp_config::XkbConfig;
 use cosmic_comp_config::input::{
     AccelConfig, ClickMethod, DeviceState, InputConfig, ScrollConfig, ScrollMethod, TapButtonMap,
     TapConfig,
@@ -9,6 +10,25 @@ use super::Event;
 pub enum InputEvent {
     TouchPad(TouchpadEvent),
     Mouse(MouseEvent),
+    Keyboard(KeyboardEvent),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum KeyboardEvent {
+    /// XKB rules file.
+    Rules(String),
+    /// Keyboard model.
+    Model(String),
+    /// Keyboard layout(s).
+    Layout(String),
+    /// Keyboard variant(s).
+    Variant(String),
+    /// XKB options.
+    Options(Option<String>),
+    /// Key repeat delay in ms.
+    RepeatDelay(u32),
+    /// Key repeat rate in Hz.
+    RepeatRate(u32),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -384,6 +404,63 @@ impl MouseEvent {
             // Unreachable: cosmic-settings currently does not produce this event
             let event = Event::Input(InputEvent::Mouse(MouseEvent::MapToOutput(
                 new.map_to_output,
+            )));
+            events.push(event);
+        }
+
+        events
+    }
+}
+
+impl KeyboardEvent {
+    // #todo: convert it to a &self methods pub fn from(&self, new: XkbConfig) -> Vec<Event> where &self is the old config
+    // I am unable to decide good name so leaving it :)
+    pub fn from(old: XkbConfig, new: XkbConfig) -> Vec<Event> {
+        if old == new {
+            return vec![];
+        }
+
+        let mut events = Vec::new();
+
+        if old.rules != new.rules {
+            let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::Rules(
+                new.rules.clone(),
+            )));
+            events.push(event);
+        }
+        if old.model != new.model {
+            let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::Model(
+                new.model.clone(),
+            )));
+            events.push(event);
+        }
+        if old.layout != new.layout {
+            let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::Layout(
+                new.layout.clone(),
+            )));
+            events.push(event);
+        }
+        if old.variant != new.variant {
+            let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::Variant(
+                new.variant.clone(),
+            )));
+            events.push(event);
+        }
+        if old.options != new.options {
+            let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::Options(
+                new.options.clone(),
+            )));
+            events.push(event);
+        }
+        if old.repeat_delay != new.repeat_delay {
+            let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::RepeatDelay(
+                new.repeat_delay,
+            )));
+            events.push(event);
+        }
+        if old.repeat_rate != new.repeat_rate {
+            let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::RepeatRate(
+                new.repeat_rate,
             )));
             events.push(event);
         }

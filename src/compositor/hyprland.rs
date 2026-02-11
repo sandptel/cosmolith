@@ -5,7 +5,7 @@ use hyprland::keyword::Keyword;
 use crate::compositor::input::{Input, InputResult};
 use crate::compositor::{Compositor, CompositorResult};
 use crate::event::Event;
-use crate::event::input::InputEvent;
+use crate::event::input::{InputEvent, KeyboardEvent};
 
 use cosmic_comp_config::input::{
     AccelConfig, AccelProfile, ClickMethod, DeviceState, ScrollConfig, ScrollMethod, TapButtonMap,
@@ -96,6 +96,7 @@ impl Compositor for Hyprland {
         match event {
             Event::Input(InputEvent::TouchPad(ev)) => self.apply_touchpad_event(ev),
             Event::Input(InputEvent::Mouse(ev)) => self.apply_mouse_event(ev),
+            Event::Input(InputEvent::Keyboard(ev)) => self.apply_keyboard_event(ev),
         }
     }
 

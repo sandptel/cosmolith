@@ -2,10 +2,14 @@
 
 use std::{error::Error, sync::mpsc::Sender};
 
+use cosmic_comp_config::XkbConfig;
 use cosmic_comp_config::input::InputConfig;
 use cosmic_config::{Config, ConfigGet};
 
-use crate::event::{input::{MouseEvent, TouchpadEvent}, Event};
+use crate::event::{
+    Event,
+    input::{KeyboardEvent, MouseEvent, TouchpadEvent},
+};
 use std::sync::{Arc, Mutex};
 
 // #todo : Find all the keys linked to  com.system76.CosmicComp and catch those and read events
@@ -23,7 +27,7 @@ pub struct InputState {
     // #todo: Find which exact type is used to emit and monitor changes for this
     // Add that here and then
     // 1. pattern match / 2. add events / 3. impl from() / 4. Events -> Ipc Calls Mapping
-    // keyboard:
+    keyboard: Option<XkbConfig>,
 }
 
 pub fn start_input_watcher(
@@ -33,6 +37,7 @@ pub fn start_input_watcher(
     let state = Arc::new(Mutex::new(InputState {
         touchpad: config.get::<InputConfig>("input_touchpad").ok(),
         mouse: config.get::<InputConfig>("input_default").ok(),
+        keyboard: config.get::<XkbConfig>("xkb_config").ok(),
     }));
 
     // Keep the watcher alive for the lifetime of the program.
@@ -83,6 +88,17 @@ impl InputState {
                         eprintln!("Failed to get changed config due to the error: {:?}", e);
                     }
                 },
+                "xkb_config" => match cfg.get::<XkbConfig>(key) {
+                    Ok(new_config) => {
+                        if let Some(old) = self.keyboard.clone() {
+                            events.extend(KeyboardEvent::from(old, new_config.clone()));
+                        }
+                        self.keyboard = Some(new_config);
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to get changed config due to the error: {:?}", e);
+                    }
+                },
                 x => {
                     eprintln!(
                         "Unknown key found in Input (com.system76.CosmicComp): {}",
@@ -94,4 +110,3 @@ impl InputState {
         events
     }
 }
-

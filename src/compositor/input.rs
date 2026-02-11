@@ -1,16 +1,28 @@
 use std::error::Error;
 
-use crate::event::input::{MouseEvent, TouchpadEvent};
+use crate::event::input::{KeyboardEvent, MouseEvent, TouchpadEvent};
+use cosmic_comp_config::XkbConfig;
 
 use cosmic_comp_config::input::{
-    AccelConfig, ClickMethod, DeviceState, ScrollConfig, ScrollMethod, TapButtonMap,
-    TapConfig,
+    AccelConfig, ClickMethod, DeviceState, ScrollConfig, ScrollMethod, TapButtonMap, TapConfig,
 };
 
 pub type InputResult = Result<(), Box<dyn Error + Send + Sync>>;
 
 /// Compositor input interface. Implement this for each compositor backend.
 pub trait Input {
+    fn apply_keyboard_event(&self, event: KeyboardEvent) -> InputResult {
+        match event {
+            KeyboardEvent::Rules(v) => self.keyboard_rules(v),
+            KeyboardEvent::Model(v) => self.keyboard_model(v),
+            KeyboardEvent::Layout(v) => self.keyboard_layout(v),
+            KeyboardEvent::Variant(v) => self.keyboard_variant(v),
+            KeyboardEvent::Options(v) => self.keyboard_options(v),
+            KeyboardEvent::RepeatDelay(v) => self.keyboard_repeat_delay(v),
+            KeyboardEvent::RepeatRate(v) => self.keyboard_repeat_rate(v),
+        }
+    }
+
     fn apply_touchpad_event(&self, event: TouchpadEvent) -> InputResult {
         match event {
             TouchpadEvent::State(v) => self.touchpad_state(v),
@@ -55,6 +67,35 @@ pub trait Input {
         }
     }
 
+    fn keyboard_rules(&self, rules: String) -> InputResult {
+        eprintln!("keyboard_rules not implemented: {:?}", rules);
+        Ok(())
+    }
+    fn keyboard_model(&self, model: String) -> InputResult {
+        eprintln!("keyboard_model not implemented: {:?}", model);
+        Ok(())
+    }
+    fn keyboard_layout(&self, layout: String) -> InputResult {
+        eprintln!("keyboard_layout not implemented: {:?}", layout);
+        Ok(())
+    }
+    fn keyboard_variant(&self, variant: String) -> InputResult {
+        eprintln!("keyboard_variant not implemented: {:?}", variant);
+        Ok(())
+    }
+    fn keyboard_options(&self, options: Option<String>) -> InputResult {
+        eprintln!("keyboard_options not implemented: {:?}", options);
+        Ok(())
+    }
+    fn keyboard_repeat_delay(&self, delay: u32) -> InputResult {
+        eprintln!("keyboard_repeat_delay not implemented: {:?}", delay);
+        Ok(())
+    }
+    fn keyboard_repeat_rate(&self, rate: u32) -> InputResult {
+        eprintln!("keyboard_repeat_rate not implemented: {:?}", rate);
+        Ok(())
+    }
+
     fn touchpad_state(&self, state: DeviceState) -> InputResult {
         eprintln!("touchpad_state not implemented: {:?}", state);
         Ok(())
@@ -72,7 +113,10 @@ pub trait Input {
         Ok(())
     }
     fn touchpad_disable_while_typing(&self, enabled: Option<bool>) -> InputResult {
-        eprintln!("touchpad_disable_while_typing not implemented: {:?}", enabled);
+        eprintln!(
+            "touchpad_disable_while_typing not implemented: {:?}",
+            enabled
+        );
         Ok(())
     }
     fn touchpad_left_handed(&self, enabled: Option<bool>) -> InputResult {
@@ -80,7 +124,10 @@ pub trait Input {
         Ok(())
     }
     fn touchpad_middle_button_emulation(&self, enabled: Option<bool>) -> InputResult {
-        eprintln!("touchpad_middle_button_emulation not implemented: {:?}", enabled);
+        eprintln!(
+            "touchpad_middle_button_emulation not implemented: {:?}",
+            enabled
+        );
         Ok(())
     }
     fn touchpad_rotation_angle(&self, angle: Option<u32>) -> InputResult {
@@ -157,7 +204,10 @@ pub trait Input {
         Ok(())
     }
     fn mouse_middle_button_emulation(&self, enabled: Option<bool>) -> InputResult {
-        eprintln!("mouse_middle_button_emulation not implemented: {:?}", enabled);
+        eprintln!(
+            "mouse_middle_button_emulation not implemented: {:?}",
+            enabled
+        );
         Ok(())
     }
     fn mouse_rotation_angle(&self, angle: Option<u32>) -> InputResult {
