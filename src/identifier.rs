@@ -2,15 +2,16 @@ use std::env;
 
 #[allow(dead_code)]
 #[derive(Debug)]
-// The following is just an intermediatry to be passed to Compsoitor Module 
-// compositor::init_compositor will match and convert the identified compositor to 
-// their equivalent structs 
+// The following is just an intermediatry to be passed to Compsoitor Module
+// compositor::init_compositor will match and convert the identified compositor to
+// their equivalent structs
 pub enum Desktop {
     Hyprland,
     Sway,
     Gnome,
     Kde,
     Plasma,
+    Niri,
     Xfce,
     Cosmic,
     Wayland,
@@ -37,6 +38,9 @@ pub fn get_current_session() -> Desktop {
     if env::var("SWAYSOCK").is_ok() {
         return Desktop::Sway;
     }
+    if env::var("NIRI_SOCKET").is_ok() {
+        return Desktop::Niri;
+    }
 
     let candidates = [
         env::var("XDG_CURRENT_DESKTOP").ok(),
@@ -51,6 +55,9 @@ pub fn get_current_session() -> Desktop {
         }
         if lower.contains("sway") {
             return Desktop::Sway;
+        }
+        if lower.contains("niri") {
+            return Desktop::Niri;
         }
         if lower.contains("gnome") {
             return Desktop::Gnome;
