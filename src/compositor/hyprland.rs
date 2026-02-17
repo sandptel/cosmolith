@@ -1,5 +1,6 @@
 use crate::compositor::input::{Input, InputResult};
 use crate::compositor::{Compositor, CompositorResult};
+use crate::error::Error;
 use crate::event::Event;
 use crate::event::input::InputEvent;
 use hyprland::keyword::Keyword;
@@ -26,7 +27,7 @@ impl Hyprland {
 
     fn set_keyword(&self, key: &str, value: impl ToString) -> InputResult {
         Keyword::set(key, value.to_string())
-            .map_err(|err| Box::new(err) as Box<dyn std::error::Error + Send + Sync>)
+            .map_err(|err| Error::ipc_command("Hyprland", key, Some(Box::new(err))))
     }
 
     fn set_bool(&self, key: &str, value: Option<bool>) -> InputResult {
@@ -68,11 +69,9 @@ impl Compositor for Hyprland {
     fn init(&mut self) -> CompositorResult {
         self.instance_signature = env::var("HYPRLAND_INSTANCE_SIGNATURE").ok();
         if self.instance_signature.is_none() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "HYPRLAND_INSTANCE_SIGNATURE not set",
-            )
-            .into());
+            return Err(Error::MissingEnvVar {
+                var: "HYPRLAND_INSTANCE_SIGNATURE",
+            });
         }
         Ok(())
     }

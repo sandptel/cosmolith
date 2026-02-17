@@ -5,6 +5,7 @@ use swayipc::Connection;
 
 use crate::compositor::input::{Input, InputResult};
 use crate::compositor::{Compositor, CompositorResult};
+use crate::error::Error;
 use crate::event::Event;
 use crate::event::input::InputEvent;
 
@@ -60,11 +61,13 @@ impl Sway {
 
     fn run_command(&self, cmd: String) -> InputResult {
         let mut guard = self.connection.lock().map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::Other, "Sway connection lock poisoned")
+            Error::ipc_connection("Sway", "connection lock poisoned", None)
         })?;
 
         if guard.is_none() {
-            *guard = Some(Connection::new()?);
+            *guard = Some(Connection::new().map_err(|e| {
+                Error::ipc_connection("Sway", "failed to connect", Some(Box::new(e)))
+            })?);
         }
 
         let result = guard.as_mut().unwrap().run_command(&cmd);
@@ -79,8 +82,12 @@ impl Sway {
             }
             Err(err) => {
                 eprintln!("Sway IPC error: {err}. Reconnecting...");
-                *guard = Some(Connection::new()?);
-                let results = guard.as_mut().unwrap().run_command(&cmd)?;
+                *guard = Some(Connection::new().map_err(|e| {
+                    Error::ipc_connection("Sway", "failed to reconnect", Some(Box::new(e)))
+                })?);
+                let results = guard.as_mut().unwrap().run_command(&cmd).map_err(|e| {
+                    Error::ipc_command("Sway", &cmd, Some(Box::new(e)))
+                })?;
                 for res in results {
                     if let Err(err) = res {
                         eprintln!("Sway command error: {err}");
@@ -125,9 +132,11 @@ impl Sway {
 impl Compositor for Sway {
     fn init(&mut self) -> CompositorResult {
         let mut guard = self.connection.lock().map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::Other, "Sway connection lock poisoned")
+            Error::ipc_connection("Sway", "connection lock poisoned", None)
         })?;
-        *guard = Some(Connection::new()?);
+        *guard = Some(Connection::new().map_err(|e| {
+            Error::ipc_connection("Sway", "failed to connect", Some(Box::new(e)))
+        })?);
         Ok(())
     }
 

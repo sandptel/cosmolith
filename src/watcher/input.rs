@@ -1,11 +1,12 @@
 // Watch Input Config Changes
 
-use std::{error::Error, sync::mpsc::Sender};
+use std::sync::mpsc::Sender;
 
 use cosmic_comp_config::XkbConfig;
 use cosmic_comp_config::input::InputConfig;
 use cosmic_config::{Config, ConfigGet};
 
+use crate::error::{Error, Result};
 use crate::event::{
     Event,
     input::{KeyboardEvent, MouseEvent, TouchpadEvent},
@@ -32,8 +33,10 @@ pub struct InputState {
 
 pub fn start_input_watcher(
     tx: &Arc<Mutex<Sender<Event>>>,
-) -> Result<Box<dyn std::any::Any + Send>, Box<dyn Error>> {
-    let config = Config::new(INPUTNAMESPACE, VERSION)?;
+) -> Result<Box<dyn std::any::Any + Send>> {
+    let config = Config::new(INPUTNAMESPACE, VERSION).map_err(|e| {
+        Error::watcher_setup(INPUTNAMESPACE, "failed to create config", Some(Box::new(e)))
+    })?;
     let state = Arc::new(Mutex::new(InputState {
         touchpad: config.get::<InputConfig>("input_touchpad").ok(),
         mouse: config.get::<InputConfig>("input_default").ok(),
@@ -56,6 +59,8 @@ pub fn start_input_watcher(
                 }
             }
         }
+    }).map_err(|e| {
+        Error::watcher_setup(INPUTNAMESPACE, "failed to start watcher", Some(Box::new(e)))
     })?;
 
     Ok(Box::new(watcher))
