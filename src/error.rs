@@ -34,7 +34,7 @@ pub enum Error {
         key: String 
     },
 
-    /// Failed to set up a config watcher.
+    // Failed to set up a config watcher.
     #[error("watcher setup failed for {namespace}: {reason}")]
     WatcherSetup {
         namespace: String,
@@ -43,19 +43,17 @@ pub enum Error {
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
-    /// Config watcher channel disconnected unexpectedly.
+    // Config watcher channel disconnected unexpectedly.
     #[error("watcher channel disconnected for {namespace}")]
     WatcherDisconnected { namespace: String },
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Event Conversion Errors
-    // ─────────────────────────────────────────────────────────────────────────
 
-    /// General event conversion failure.
+    // General event conversion failure.
     #[error("event conversion failed for {domain}: {reason}")]
     EventConversion { domain: &'static str, reason: String },
 
-    /// Unsupported or invalid value encountered during conversion.
+    // Unsupported or invalid value encountered during conversion.
     #[error("unsupported value for {domain}.{field}: {value}")]
     UnsupportedValue {
         domain: &'static str,
@@ -63,7 +61,7 @@ pub enum Error {
         value: String,
     },
 
-    /// Type mismatch during event deserialization or conversion.
+    // Type mismatch during event deserialization or conversion.
     #[error("type mismatch for {domain}.{field}: expected {expected}, got {actual}")]
     TypeMismatch {
         domain: &'static str,
@@ -72,37 +70,33 @@ pub enum Error {
         actual: String,
     },
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Dispatch Errors
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /// No compositor backend is available to handle events.
+    
+    // No compositor backend is available to handle events.
     #[error("no compositor backend available")]
     NoCompositor,
 
-    /// The event is not supported by the current compositor.
+    // The event is not supported by the current compositor.
     #[error("{compositor} does not support event: {event}")]
     UnsupportedEvent {
         compositor: &'static str,
         event: String,
     },
 
-    /// Event handler not implemented for this compositor.
+    // Event handler not implemented for this compositor.
     #[error("{compositor}: {handler} not implemented")]
     NotImplemented {
         compositor: &'static str,
         handler: &'static str,
     },
 
-    /// Failed to route event to appropriate handler.
+    // Failed to route event to appropriate handler.
     #[error("event routing failed: {reason}")]
     RoutingFailed { reason: String },
 
-    // ─────────────────────────────────────────────────────────────────────────
     // IPC/Backend Errors
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /// Failed to connect to compositor IPC socket.
+    
+    // Failed to connect to compositor IPC socket.
     #[error("failed to connect to {compositor} IPC: {reason}")]
     IpcConnection {
         compositor: &'static str,
@@ -111,7 +105,7 @@ pub enum Error {
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
-    /// IPC command execution failed.
+    // IPC command execution failed.
     #[error("{compositor} command failed: {command}")]
     IpcCommand {
         compositor: &'static str,
@@ -120,7 +114,7 @@ pub enum Error {
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
-    /// IPC command returned an error response.
+    // IPC command returned an error response.
     #[error("{compositor} returned error for '{command}': {response}")]
     IpcResponse {
         compositor: &'static str,
@@ -128,54 +122,50 @@ pub enum Error {
         response: String,
     },
 
-    /// IPC socket disconnected; reconnection may be needed.
+    // IPC socket disconnected; reconnection may be needed.
     #[error("{compositor} IPC disconnected")]
     IpcDisconnected { compositor: &'static str },
 
-    /// Failed to reconnect to compositor IPC.
+    // Failed to reconnect to compositor IPC.
     #[error("failed to reconnect to {compositor} IPC after {attempts} attempts")]
     IpcReconnectFailed {
         compositor: &'static str,
         attempts: u32,
     },
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Environment Errors
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /// Failed to detect current compositor/session.
+    
+    // Failed to detect current compositor/session.
     #[error("compositor detection failed: {reason}")]
     DetectionFailed { reason: String },
 
-    /// Required environment variable is missing.
+    // Required environment variable is missing.
     #[error("missing environment variable: {var}")]
     MissingEnvVar { var: &'static str },
 
-    /// Environment variable has an invalid value.
+    // Environment variable has an invalid value.
     #[error("invalid value for {var}: {value}")]
     InvalidEnvVar { var: &'static str, value: String },
 
-    /// Session is in an unsupported or invalid state.
+    // Session is in an unsupported or invalid state.
     #[error("unsupported session type: {session}")]
     UnsupportedSession { session: String },
 
-    /// Compositor is not running or not reachable.
+    // Compositor is not running or not reachable.
     #[error("{compositor} is not running")]
     CompositorNotRunning { compositor: &'static str },
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Wrapped External Errors
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /// Standard I/O error.
+    
+    // Standard I/O error.
     #[error("I/O error: {0}")]
     Io(#[from] io::Error),
 
-    /// Channel send error (generic, for mpsc failures).
+    // Channel send error (generic, for mpsc failures).
     #[error("channel send failed: {0}")]
     ChannelSend(String),
 
-    /// Generic external error wrapper for interop.
+    // Generic external error wrapper for interop.
     #[error("{context}: {message}")]
     External {
         context: &'static str,
@@ -185,12 +175,10 @@ pub enum Error {
     },
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Convenience constructors
-// ─────────────────────────────────────────────────────────────────────────────
+// Convenience constructors for removing boilerplate when creating errors with context and sources.
 
 impl Error {
-    /// Create a ConfigRead error.
+    // Create a ConfigRead error.
     pub fn config_read(
         namespace: impl Into<String>,
         key: impl Into<String>,
@@ -203,7 +191,7 @@ impl Error {
         }
     }
 
-    /// Create a WatcherSetup error.
+    // Create a WatcherSetup error.
     pub fn watcher_setup(
         namespace: impl Into<String>,
         reason: impl Into<String>,
@@ -216,7 +204,7 @@ impl Error {
         }
     }
 
-    /// Create an IpcCommand error.
+    // Create an IpcCommand error.
     pub fn ipc_command(
         compositor: &'static str,
         command: impl Into<String>,
@@ -229,7 +217,7 @@ impl Error {
         }
     }
 
-    /// Create an IpcConnection error.
+    // Create an IpcConnection error.
     pub fn ipc_connection(
         compositor: &'static str,
         reason: impl Into<String>,
@@ -242,7 +230,7 @@ impl Error {
         }
     }
 
-    /// Create a NotImplemented error for unimplemented handlers.
+    // Create a NotImplemented error for unimplemented handlers.
     pub fn not_implemented(compositor: &'static str, handler: &'static str) -> Self {
         Self::NotImplemented {
             compositor,
@@ -250,7 +238,7 @@ impl Error {
         }
     }
 
-    /// Wrap an external error with context.
+    // Wrap an external error with context.
     pub fn external(
         context: &'static str,
         source: impl std::error::Error + Send + Sync + 'static,

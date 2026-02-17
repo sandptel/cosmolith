@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
- mod error;
+mod error;
 mod watcher;
 use watcher::input::start_input_watcher;
 mod event;
