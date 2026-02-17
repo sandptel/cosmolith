@@ -1,12 +1,11 @@
-use std::error::Error;
-
+use crate::error::{Error, Result};
 use crate::event::input::{KeyboardEvent, MouseEvent, TouchpadEvent};
 
 use cosmic_comp_config::input::{
     AccelConfig, ClickMethod, DeviceState, ScrollConfig, ScrollMethod, TapButtonMap, TapConfig,
 };
 
-pub type InputResult = Result<(), Box<dyn Error + Send + Sync>>;
+pub type InputResult = Result<()>;
 
 /// Compositor input interface. Implement this for each compositor backend.
 pub trait Input {

@@ -1,9 +1,10 @@
 pub mod hyprland;
 pub mod input;
 pub mod sway;
+use crate::error::{Error, Result};
 use crate::event::Event;
-use std::error::Error;
-pub type CompositorResult = Result<(), Box<dyn Error + Send + Sync>>;
+
+pub type CompositorResult = Result<()>;
 /// Central compositor interface used by the dispatcher.
 #[allow(unused)]
 pub trait Compositor {
