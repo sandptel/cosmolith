@@ -121,26 +121,34 @@ impl Compositor for Niri {
 impl Input for Niri {
     /* Keyboard */
 
-    fn keyboard_layout(&self, _layout: String) -> InputResult {
-        // let keyboard_layouts = self.request_socket(Request::KeyboardLayouts)?;
-        //
-        // if let Response::KeyboardLayouts(layouts) = keyboard_layouts {
-        //     println!("Keyboard layouts: {:?}", layouts);
-        //
-        //     let index = layouts
-        //         .names
-        //         .iter()
-        //         .position(|name| name.to_lowercase().contains(&layout.to_lowercase()));
-        //
-        //     if let Some(idx) = index {
-        //         return self.send_action(Action::SwitchLayout {
-        //             layout: niri_ipc::LayoutSwitchTarget::Index(idx as u8),
-        //         });
-        //     } else {
-        //         let msg = format!("Layout '{}' not found in Niri config", layout);
-        //         return Err(Box::<dyn std::error::Error + Send + Sync>::from(msg));
-        //     }
-        // }
+    fn keyboard_layout(&self, layout: String) -> InputResult {
+        let keyboard_layouts = self.request_socket(Request::KeyboardLayouts)?;
+
+        if let Response::KeyboardLayouts(layouts) = keyboard_layouts {
+            // split the incoming like "us,fr" string by commas and take the first layout in the list
+            let target = layout.split(',').next().unwrap_or(&layout).trim();
+
+            let index = layouts.names.iter().position(|name| {
+                let n = name.to_lowercase();
+                let t = target.to_lowercase();
+                n.contains(&t) || t.contains(&n)
+            });
+
+            if let Some(idx) = index {
+                if idx != layouts.current_idx as usize {
+                    return self.send_action(Action::SwitchLayout {
+                        layout: niri_ipc::LayoutSwitchTarget::Index(idx as u8),
+                    });
+                }
+                return Ok(());
+            } else {
+                let msg = format!(
+                    "Layout target '{}' (from '{}') not found in Niri: {:?}",
+                    target, layout, layouts.names
+                );
+                return Err(Box::<dyn std::error::Error + Send + Sync>::from(msg));
+            }
+        }
 
         Ok(())
     }
