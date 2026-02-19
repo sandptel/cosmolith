@@ -1,3 +1,4 @@
+pub mod gnome;
 pub mod hyprland;
 pub mod input;
 pub mod niri;
@@ -48,6 +49,13 @@ pub fn init_compositor(desktop: crate::identifier::Desktop) -> Option<Box<dyn Co
         }
         crate::identifier::Desktop::Niri => {
             let mut compositor = niri::Niri::new();
+            if compositor.init().is_ok() {
+                return Some(Box::new(compositor));
+            }
+            None
+        }
+        crate::identifier::Desktop::Gnome => {
+            let mut compositor = gnome::Gnome::new();
             if compositor.init().is_ok() {
                 return Some(Box::new(compositor));
             }

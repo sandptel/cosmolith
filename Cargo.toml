@@ -11,3 +11,4 @@ hyprland = { git = "https://github.com/hyprland-community/hyprland-rs", branch =
 thiserror = "2.0.18"
 swayipc = "4.0.0"
 niri-ipc = "25.11.0"
+gio = "0.21.5"
