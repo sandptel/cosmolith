@@ -1,5 +1,6 @@
 pub mod hyprland;
 pub mod input;
+pub mod kde;
 pub mod sway;
 use crate::event::Event;
 use std::error::Error;
@@ -40,6 +41,13 @@ pub fn init_compositor(desktop: crate::identifier::Desktop) -> Option<Box<dyn Co
         }
         crate::identifier::Desktop::Sway => {
             let mut compositor = sway::Sway::new();
+            if compositor.init().is_ok() {
+                return Some(Box::new(compositor));
+            }
+            None
+        }
+        crate::identifier::Desktop::Kde => {
+            let mut compositor = kde::Kde::new();
             if compositor.init().is_ok() {
                 return Some(Box::new(compositor));
             }
