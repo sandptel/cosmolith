@@ -2,9 +2,9 @@ use std::env;
 
 #[allow(dead_code)]
 #[derive(Debug)]
-// The following is just an intermediatry to be passed to Compsoitor Module 
-// compositor::init_compositor will match and convert the identified compositor to 
-// their equivalent structs 
+// The following is just an intermediatry to be passed to Compsoitor Module
+// compositor::init_compositor will match and convert the identified compositor to
+// their equivalent structs
 pub enum Desktop {
     Hyprland,
     Sway,
