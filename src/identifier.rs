@@ -11,7 +11,6 @@ pub enum Desktop {
     Gnome,
     Kde,
     Plasma,
-    Niri,
     Xfce,
     Cosmic,
     Wayland,
@@ -38,10 +37,6 @@ pub fn get_current_session() -> Desktop {
     if env::var("SWAYSOCK").is_ok() {
         return Desktop::Sway;
     }
-    if env::var("NIRI_SOCKET").is_ok() {
-        return Desktop::Niri;
-    }
-
     let candidates = [
         env::var("XDG_CURRENT_DESKTOP").ok(),
         env::var("XDG_SESSION_DESKTOP").ok(),
@@ -55,9 +50,6 @@ pub fn get_current_session() -> Desktop {
         }
         if lower.contains("sway") {
             return Desktop::Sway;
-        }
-        if lower.contains("niri") {
-            return Desktop::Niri;
         }
         if lower.contains("gnome") {
             return Desktop::Gnome;
