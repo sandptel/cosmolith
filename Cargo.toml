@@ -10,5 +10,4 @@ cosmic-comp-config = { git = "https://github.com/pop-os/cosmic-comp" }
 hyprland = { git = "https://github.com/hyprland-community/hyprland-rs", branch = "master", features = ["keyword"] }
 thiserror = "2.0.18"
 swayipc = "4.0.0"
-gio = "0.21.5"
 zbus = "5.13.2"
