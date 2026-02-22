@@ -37,7 +37,6 @@ pub fn get_current_session() -> Desktop {
     if env::var("SWAYSOCK").is_ok() {
         return Desktop::Sway;
     }
-
     let candidates = [
         env::var("XDG_CURRENT_DESKTOP").ok(),
         env::var("XDG_SESSION_DESKTOP").ok(),
