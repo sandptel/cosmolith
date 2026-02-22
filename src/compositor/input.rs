@@ -6,6 +6,8 @@ use cosmic_comp_config::input::{
     AccelConfig, ClickMethod, DeviceState, ScrollConfig, ScrollMethod, TapButtonMap, TapConfig,
 };
 
+use cosmic_comp_config::NumlockState;
+
 pub type InputResult = Result<(), Box<dyn Error + Send + Sync>>;
 
 /// Compositor input interface. Implement this for each compositor backend.
@@ -19,6 +21,7 @@ pub trait Input {
             KeyboardEvent::Options(v) => self.keyboard_options(v),
             KeyboardEvent::RepeatDelay(v) => self.keyboard_repeat_delay(v),
             KeyboardEvent::RepeatRate(v) => self.keyboard_repeat_rate(v),
+            KeyboardEvent::NumLock(v) => self.numslock_state(v),
         }
     }
 
@@ -92,6 +95,11 @@ pub trait Input {
     }
     fn keyboard_repeat_rate(&self, rate: u32) -> InputResult {
         eprintln!("keyboard_repeat_rate not implemented: {:?}", rate);
+        Ok(())
+    }
+
+    fn numslock_state(&self, state: NumlockState) -> InputResult {
+        eprintln!("numslock_state not implemented: {:?}", state);
         Ok(())
     }
 

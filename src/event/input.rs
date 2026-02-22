@@ -1,4 +1,4 @@
-use cosmic_comp_config::XkbConfig;
+use cosmic_comp_config::{XkbConfig, KeyboardConfig, NumlockState};
 use cosmic_comp_config::input::{
     AccelConfig, ClickMethod, DeviceState, InputConfig, ScrollConfig, ScrollMethod, TapButtonMap,
     TapConfig,
@@ -29,6 +29,9 @@ pub enum KeyboardEvent {
     RepeatDelay(u32),
     /// Key repeat rate in Hz.
     RepeatRate(u32),
+    /// Numlock state.
+    /// NumlockState::BootOn | BootOff | LastBoot.
+    NumLock(NumlockState),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -461,6 +464,25 @@ impl KeyboardEvent {
         if old.repeat_rate != new.repeat_rate {
             let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::RepeatRate(
                 new.repeat_rate,
+            )));
+            events.push(event);
+        }
+
+        events
+    }
+}
+
+impl KeyboardEvent {
+    pub fn from_keyboard_config(old: KeyboardConfig, new: KeyboardConfig) -> Vec<Event> {
+        if old == new {
+            return vec![];
+        }
+
+        let mut events = Vec::new();
+
+        if old.numlock_state != new.numlock_state {
+            let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::NumLock(
+                new.numlock_state,
             )));
             events.push(event);
         }
