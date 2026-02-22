@@ -1,7 +1,7 @@
 use cosmic_comp_config::{XkbConfig, KeyboardConfig, NumlockState};
 use cosmic_comp_config::input::{
     AccelConfig, ClickMethod, DeviceState, InputConfig, ScrollConfig, ScrollMethod, TapButtonMap,
-    TapConfig,
+    TapConfig, TouchpadOverride,
 };
 
 use super::Event;
@@ -39,6 +39,9 @@ pub enum TouchpadEvent {
     /// Touchpad enable state.
     /// DeviceState::Enabled = on, Disabled = off, DisabledOnExternalMouse = auto-off with external mouse.
     State(DeviceState),
+    /// Override touchpad state.
+    /// TouchpadOverride::None = no override, ForceDisable = force disable touchpad.
+    Override(TouchpadOverride),
     /// Acceleration settings.
     /// profile: AccelProfile::Flat | AccelProfile::Adaptive.
     Acceleration(Option<AccelConfig>),

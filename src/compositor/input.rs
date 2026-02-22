@@ -4,6 +4,7 @@ use crate::event::input::{KeyboardEvent, MouseEvent, TouchpadEvent};
 
 use cosmic_comp_config::input::{
     AccelConfig, ClickMethod, DeviceState, ScrollConfig, ScrollMethod, TapButtonMap, TapConfig,
+    TouchpadOverride,
 };
 
 use cosmic_comp_config::NumlockState;
@@ -28,6 +29,7 @@ pub trait Input {
     fn apply_touchpad_event(&self, event: TouchpadEvent) -> InputResult {
         match event {
             TouchpadEvent::State(v) => self.touchpad_state(v),
+            TouchpadEvent::Override(v) => self.touchpad_override(v),
             TouchpadEvent::Acceleration(v) => self.touchpad_acceleration(v),
             TouchpadEvent::Calibration(v) => self.touchpad_calibration(v),
             TouchpadEvent::ClickMethod(v) => self.touchpad_click_method(v),
@@ -105,6 +107,10 @@ pub trait Input {
 
     fn touchpad_state(&self, state: DeviceState) -> InputResult {
         eprintln!("touchpad_state not implemented: {:?}", state);
+        Ok(())
+    }
+    fn touchpad_override(&self, override_state: TouchpadOverride) -> InputResult {
+        eprintln!("touchpad_override not implemented: {:?}", override_state);
         Ok(())
     }
     fn touchpad_acceleration(&self, accel: Option<AccelConfig>) -> InputResult {

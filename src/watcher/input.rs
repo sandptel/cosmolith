@@ -3,7 +3,7 @@
 use std::{error::Error, sync::mpsc::Sender};
 
 use cosmic_comp_config::{XkbConfig, KeyboardConfig};
-use cosmic_comp_config::input::InputConfig;
+use cosmic_comp_config::input::{InputConfig, TouchpadOverride};
 use cosmic_config::{Config, ConfigGet};
 
 use crate::event::{
@@ -18,10 +18,10 @@ use std::sync::{Arc, Mutex};
 // 2. input_default
 // 3. xkb_config 
 // 4. keyboard_config 
+// 5. input_touchpad_override
 // to be implemented
-// 5. workspaces
-// 6. pinned_workspaces
-// 7. input_touchpad_override
+// 6. workspaces
+// 7. pinned_workspaces
 // 8. input_devices 
 // 9. autotile
 // 10. autotile_behaviour
@@ -45,6 +45,7 @@ pub struct InputState {
     // 1. pattern match / 2. add events / 3. impl from() / 4. Events -> Ipc Calls Mapping
     keyboard: Option<XkbConfig>,
     numslock: Option<KeyboardConfig>,
+    touchpad_override: Option<TouchpadOverride>,
 }
 
 pub fn start_input_watcher(
@@ -56,6 +57,7 @@ pub fn start_input_watcher(
         mouse: config.get::<InputConfig>("input_default").ok(),
         keyboard: config.get::<XkbConfig>("xkb_config").ok(),
         numslock: config.get::<KeyboardConfig>("keyboard_config").ok(),
+        touchpad_override: config.get::<TouchpadOverride>("input_touchpad_override").ok(),
     }));
 
     // Keep the watcher alive for the lifetime of the program.
@@ -123,6 +125,19 @@ impl InputState {
                             events.extend(KeyboardEvent::from_keyboard_config(old, new_config.clone()));
                         }
                         self.numslock = Some(new_config);
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to get changed config due to the error: {:?}", e);
+                    }
+                }
+                "input_touchpad_override" => match cfg.get::<TouchpadOverride>(key) {
+                    Ok(new_config) => {
+                        if self.touchpad_override != Some(new_config.clone()) {
+                            events.push(Event::Input(crate::event::input::InputEvent::TouchPad(
+                                TouchpadEvent::Override(new_config.clone()),
+                            )));
+                        }
+                        self.touchpad_override = Some(new_config);
                     }
                     Err(e) => {
                         eprintln!("Failed to get changed config due to the error: {:?}", e);

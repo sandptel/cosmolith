@@ -9,7 +9,8 @@ use crate::event::Event;
 use crate::event::input::InputEvent;
 
 use cosmic_comp_config::input::{
-    AccelConfig, AccelProfile, ClickMethod, ScrollConfig, ScrollMethod, TapConfig,
+    AccelConfig, AccelProfile, ClickMethod, DeviceState, ScrollConfig, ScrollMethod, TapConfig,
+    TouchpadOverride,
 };
 use cosmic_comp_config::NumlockState;
 
@@ -52,6 +53,14 @@ impl Sway {
             AccelProfile::Flat => "flat",
             AccelProfile::Adaptive => "adaptive",
             _ => "none",
+        }
+    }
+
+    fn map_device_state(state: &DeviceState) -> &'static str {
+        match state {
+            DeviceState::Enabled => "enabled",
+            DeviceState::Disabled => "disabled",
+            DeviceState::DisabledOnExternalMouse => "disabled_on_external_mouse",
         }
     }
 
@@ -204,11 +213,17 @@ impl Input for Sway {
         }
     }
 
-    // fn touchpad_state(&self, _state: DeviceState) -> InputResult {
-    //     // TODO: Requires device-specific identifiers; DisabledOnExternalMouse not supported.
-    //     dbg!("Sway: touchpad enable/disable not supported via type:touchpad");
-    //     Ok(())
-    // }
+    fn touchpad_state(&self, state: DeviceState) -> InputResult {
+        let value = Self::map_device_state(&state);
+        self.run_command(format!("input type:touchpad events {value}"))
+    }
+
+    fn touchpad_override(&self, override_state: TouchpadOverride) -> InputResult {
+        match override_state {
+            TouchpadOverride::ForceDisable => self.touchpad_state(DeviceState::Disabled),
+            TouchpadOverride::None => Ok(()), // No override, keep current state
+        }
+    }
 
     fn touchpad_acceleration(&self, accel: Option<AccelConfig>) -> InputResult {
         if let Some(accel) = accel {
@@ -326,11 +341,10 @@ impl Input for Sway {
     //     Ok(())
     // }
 
-    // fn mouse_state(&self, _state: DeviceState) -> InputResult {
-    //     // TODO: Requires device-specific identifiers; DisabledOnExternalMouse not supported.
-    //     dbg!("Sway: mouse enable/disable not supported via type:pointer");
-    //     Ok(())
-    // }
+    fn mouse_state(&self, state: DeviceState) -> InputResult {
+        let value = Self::map_device_state(&state);
+        self.run_command(format!("input type:pointer events {value}"))
+    }
 
     fn mouse_acceleration(&self, accel: Option<AccelConfig>) -> InputResult {
         if let Some(accel) = accel {
