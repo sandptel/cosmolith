@@ -6,6 +6,26 @@ use cosmic_comp_config::input::{
 
 use super::Event;
 
+/// Extension trait for diffing `InputConfig` to produce touchpad/mouse events.
+pub trait InputConfigDiff {
+    /// Compare self (old) with new config and return touchpad-related events.
+    fn from_touchpad(&self, new: &InputConfig) -> Vec<Event>;
+    /// Compare self (old) with new config and return mouse-related events.
+    fn from_mouse(&self, new: &InputConfig) -> Vec<Event>;
+}
+
+/// Extension trait for diffing `XkbConfig` to produce keyboard events.
+pub trait XkbConfigDiff {
+    /// Compare self (old) with new config and return keyboard-related events.
+    fn from(&self, new: &XkbConfig) -> Vec<Event>;
+}
+
+/// Extension trait for diffing `KeyboardConfig` to produce keyboard events.
+pub trait KeyboardConfigDiff {
+    /// Compare self (old) with new config and return keyboard-related events (numlock).
+    fn from(&self, new: &KeyboardConfig) -> Vec<Event>;
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum InputEvent {
     TouchPad(TouchpadEvent),
@@ -147,67 +167,65 @@ pub enum MouseEvent {
     ScrollButton(Option<u32>),
 }
 
-impl TouchpadEvent {
-    // #todo: convert it to a &self methods pub fn from(&self, new: InputConfig) -> Vec<Event> where &self is the old config
-    // I am unable to decide good name so leaving it :)
-    pub fn from(old: InputConfig, new: InputConfig) -> Vec<Event> {
-        if old == new {
+impl InputConfigDiff for InputConfig {
+    fn from_touchpad(&self, new: &InputConfig) -> Vec<Event> {
+        if self == new {
             return vec![];
         }
 
         let mut events = Vec::new();
 
-        if old.state != new.state {
+        if self.state != new.state {
             // Unreachable: cosmic-settings currently does not produce this event
             let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::State(new.state)));
             events.push(event);
         }
-        if old.acceleration != new.acceleration {
+        if self.acceleration != new.acceleration {
             let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::Acceleration(
                 new.acceleration.clone(),
             )));
             events.push(event);
         }
-        if old.calibration != new.calibration {
+        if self.calibration != new.calibration {
             // Unreachable: cosmic-settings currently does not produce this event
             let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::Calibration(
                 new.calibration,
             )));
             events.push(event);
         }
-        if old.click_method != new.click_method {
+        if self.click_method != new.click_method {
             let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::ClickMethod(
                 new.click_method,
             )));
             events.push(event);
         }
-        if old.disable_while_typing != new.disable_while_typing {
+        if self.disable_while_typing != new.disable_while_typing {
             let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::DisableWhileTyping(
                 new.disable_while_typing,
             )));
             events.push(event);
         }
-        if old.left_handed != new.left_handed {
+        if self.left_handed != new.left_handed {
             let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::LeftHanded(
                 new.left_handed,
             )));
             events.push(event);
         }
-        if old.middle_button_emulation != new.middle_button_emulation {
+        if self.middle_button_emulation != new.middle_button_emulation {
             // Unreachable: cosmic-settings currently does not produce this event
             let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::MiddleButtonEmulation(
                 new.middle_button_emulation,
             )));
             events.push(event);
         }
-        if old.rotation_angle != new.rotation_angle {
+        if self.rotation_angle != new.rotation_angle {
             // Unreachable: cosmic-settings currently does not produce this event
             let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::RotationAngle(
                 new.rotation_angle,
             )));
             events.push(event);
         }
-        if old.scroll_config != new.scroll_config {
+        if self.scroll_config != new.scroll_config {
             let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::ScrollConfig(
                 new.scroll_config.clone(),
             )));
@@ -217,7 +235,7 @@ impl TouchpadEvent {
             events.push(event);
 
             if let (Some(old_scroll), Some(new_scroll)) =
-                (old.scroll_config, new.scroll_config.clone())
+                (&self.scroll_config, &new.scroll_config)
             {
                 if old_scroll.method != new_scroll.method {
                     let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::ScrollMethod(
@@ -247,7 +265,7 @@ impl TouchpadEvent {
             }
         }
 
-        if old.tap_config != new.tap_config {
+        if self.tap_config != new.tap_config {
             let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::TapConfig(
                 new.tap_config.clone(),
             )));
@@ -256,7 +274,7 @@ impl TouchpadEvent {
             // if equivalent fine-grained events are present.
             events.push(event);
 
-            if let (Some(old_tap), Some(new_tap)) = (old.tap_config, new.tap_config.clone()) {
+            if let (Some(old_tap), Some(new_tap)) = (&self.tap_config, &new.tap_config) {
                 if old_tap.enabled != new_tap.enabled {
                     let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::TapEnabled(
                         new_tap.enabled,
@@ -285,75 +303,71 @@ impl TouchpadEvent {
                 }
             }
         }
-        if old.map_to_output != new.map_to_output {
+        if self.map_to_output != new.map_to_output {
             // Unreachable: cosmic-settings currently does not produce this event
             let event = Event::Input(InputEvent::TouchPad(TouchpadEvent::MapToOutput(
-                new.map_to_output,
+                new.map_to_output.clone(),
             )));
             events.push(event);
         }
 
         events
     }
-}
 
-impl MouseEvent {
-    // #todo: convert it to a &self methods pub fn from(&self, new: InputConfig) -> Vec<Event> where &self is the old config
-    // I am unable to decide good name so leaving it :)
-    pub fn from(old: InputConfig, new: InputConfig) -> Vec<Event> {
-        if old == new {
+    fn from_mouse(&self, new: &InputConfig) -> Vec<Event> {
+        if self == new {
             return vec![];
         }
 
         let mut events = Vec::new();
 
-        if old.state != new.state {
+        if self.state != new.state {
             // Unreachable: cosmic-settings currently does not produce this event
             let event = Event::Input(InputEvent::Mouse(MouseEvent::State(new.state)));
             events.push(event);
         }
-        if old.acceleration != new.acceleration {
+        if self.acceleration != new.acceleration {
             let event = Event::Input(InputEvent::Mouse(MouseEvent::Acceleration(
                 new.acceleration.clone(),
             )));
             events.push(event);
         }
-        if old.calibration != new.calibration {
+        if self.calibration != new.calibration {
             // Unreachable: cosmic-settings currently does not produce this event
             let event = Event::Input(InputEvent::Mouse(MouseEvent::Calibration(new.calibration)));
             events.push(event);
         }
-        if old.click_method != new.click_method {
+        if self.click_method != new.click_method {
             // Unreachable: cosmic-settings currently does not produce this event
             let event = Event::Input(InputEvent::Mouse(MouseEvent::ClickMethod(new.click_method)));
             events.push(event);
         }
-        if old.disable_while_typing != new.disable_while_typing {
+        if self.disable_while_typing != new.disable_while_typing {
             // Unreachable: cosmic-settings currently does not produce this event
             let event = Event::Input(InputEvent::Mouse(MouseEvent::DisableWhileTyping(
                 new.disable_while_typing,
             )));
             events.push(event);
         }
-        if old.left_handed != new.left_handed {
+        if self.left_handed != new.left_handed {
             let event = Event::Input(InputEvent::Mouse(MouseEvent::LeftHanded(new.left_handed)));
             events.push(event);
         }
-        if old.middle_button_emulation != new.middle_button_emulation {
+        if self.middle_button_emulation != new.middle_button_emulation {
             // Unreachable: cosmic-settings currently does not produce this event
             let event = Event::Input(InputEvent::Mouse(MouseEvent::MiddleButtonEmulation(
                 new.middle_button_emulation,
             )));
             events.push(event);
         }
-        if old.rotation_angle != new.rotation_angle {
+        if self.rotation_angle != new.rotation_angle {
             // Unreachable: cosmic-settings currently does not produce this event
             let event = Event::Input(InputEvent::Mouse(MouseEvent::RotationAngle(
                 new.rotation_angle,
             )));
             events.push(event);
         }
-        if old.scroll_config != new.scroll_config {
+        if self.scroll_config != new.scroll_config {
             let event = Event::Input(InputEvent::Mouse(MouseEvent::ScrollConfig(
                 new.scroll_config.clone(),
             )));
@@ -363,7 +377,7 @@ impl MouseEvent {
             events.push(event);
 
             if let (Some(old_scroll), Some(new_scroll)) =
-                (old.scroll_config, new.scroll_config.clone())
+                (&self.scroll_config, &new.scroll_config)
             {
                 if old_scroll.method != new_scroll.method {
                     // Unreachable: cosmic-settings currently does not produce this event
@@ -393,7 +407,7 @@ impl MouseEvent {
                 }
             }
         }
-        if old.tap_config != new.tap_config {
+        if self.tap_config != new.tap_config {
             // Unreachable: cosmic-settings currently does not produce this event
             let event = Event::Input(InputEvent::Mouse(MouseEvent::TapConfig(
                 new.tap_config.clone(),
@@ -403,10 +417,10 @@ impl MouseEvent {
             // if equivalent fine-grained events are present.
             events.push(event);
         }
-        if old.map_to_output != new.map_to_output {
+        if self.map_to_output != new.map_to_output {
             // Unreachable: cosmic-settings currently does not produce this event
             let event = Event::Input(InputEvent::Mouse(MouseEvent::MapToOutput(
-                new.map_to_output,
+                new.map_to_output.clone(),
             )));
             events.push(event);
         }
@@ -415,53 +429,51 @@ impl MouseEvent {
     }
 }
 
-impl KeyboardEvent {
-    // #todo: convert it to a &self methods pub fn from(&self, new: XkbConfig) -> Vec<Event> where &self is the old config
-    // I am unable to decide good name so leaving it :)
-    pub fn from(old: XkbConfig, new: XkbConfig) -> Vec<Event> {
-        if old == new {
+impl XkbConfigDiff for XkbConfig {
+    fn from(&self, new: &XkbConfig) -> Vec<Event> {
+        if self == new {
             return vec![];
         }
 
         let mut events = Vec::new();
 
-        if old.rules != new.rules {
+        if self.rules != new.rules {
             let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::Rules(
                 new.rules.clone(),
             )));
             events.push(event);
         }
-        if old.model != new.model {
+        if self.model != new.model {
             let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::Model(
                 new.model.clone(),
             )));
             events.push(event);
         }
-        if old.layout != new.layout {
+        if self.layout != new.layout {
             let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::Layout(
                 new.layout.clone(),
             )));
             events.push(event);
         }
-        if old.variant != new.variant {
+        if self.variant != new.variant {
             let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::Variant(
                 new.variant.clone(),
             )));
             events.push(event);
         }
-        if old.options != new.options {
+        if self.options != new.options {
             let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::Options(
                 new.options.clone(),
             )));
             events.push(event);
         }
-        if old.repeat_delay != new.repeat_delay {
+        if self.repeat_delay != new.repeat_delay {
             let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::RepeatDelay(
                 new.repeat_delay,
             )));
             events.push(event);
         }
-        if old.repeat_rate != new.repeat_rate {
+        if self.repeat_rate != new.repeat_rate {
             let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::RepeatRate(
                 new.repeat_rate,
             )));
@@ -472,15 +484,15 @@ impl KeyboardEvent {
     }
 }
 
-impl KeyboardEvent {
-    pub fn from_keyboard_config(old: KeyboardConfig, new: KeyboardConfig) -> Vec<Event> {
-        if old == new {
+impl KeyboardConfigDiff for KeyboardConfig {
+    fn from(&self, new: &KeyboardConfig) -> Vec<Event> {
+        if self == new {
             return vec![];
         }
 
         let mut events = Vec::new();
 
-        if old.numlock_state != new.numlock_state {
+        if self.numlock_state != new.numlock_state {
             let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::NumLock(
                 new.numlock_state,
             )));

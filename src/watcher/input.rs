@@ -8,7 +8,7 @@ use cosmic_config::{Config, ConfigGet};
 
 use crate::event::{
     Event,
-    input::{KeyboardEvent, MouseEvent, TouchpadEvent},
+    input::{InputConfigDiff, XkbConfigDiff, KeyboardConfigDiff},
 };
 use std::sync::{Arc, Mutex};
 
@@ -86,8 +86,8 @@ impl InputState {
             match key.as_str() {
                 "input_touchpad" => match cfg.get::<InputConfig>(key) {
                     Ok(new_config) => {
-                        if let Some(old) = self.touchpad.clone() {
-                            events.extend(TouchpadEvent::from(old, new_config.clone()));
+                        if let Some(ref old) = self.touchpad {
+                            events.extend(old.from_touchpad(&new_config));
                         }
                         self.touchpad = Some(new_config);
                     }
@@ -97,8 +97,8 @@ impl InputState {
                 },
                 "input_default" => match cfg.get::<InputConfig>(key) {
                     Ok(new_config) => {
-                        if let Some(old) = self.mouse.clone() {
-                            events.extend(MouseEvent::from(old, new_config.clone()));
+                        if let Some(ref old) = self.mouse {
+                            events.extend(old.from_mouse(&new_config));
                         }
                         self.mouse = Some(new_config);
                     }
@@ -108,8 +108,8 @@ impl InputState {
                 },
                 "xkb_config" => match cfg.get::<XkbConfig>(key) {
                     Ok(new_config) => {
-                        if let Some(old) = self.keyboard.clone() {
-                            events.extend(KeyboardEvent::from(old, new_config.clone()));
+                        if let Some(ref old) = self.keyboard {
+                            events.extend(old.from(&new_config));
                         }
                         self.keyboard = Some(new_config);
                     }
@@ -119,8 +119,8 @@ impl InputState {
                 },
                 "keyboard_config" => match cfg.get::<KeyboardConfig>(key) {
                     Ok(new_config) => {
-                        if let Some(old) = self.numslock.clone() {
-                            events.extend(KeyboardEvent::from_keyboard_config(old, new_config.clone()));
+                        if let Some(ref old) = self.numslock {
+                            events.extend(old.from(&new_config));
                         }
                         self.numslock = Some(new_config);
                     }
