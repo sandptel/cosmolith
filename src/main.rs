@@ -313,4 +313,18 @@ mod tests {
 
         assert!(!applied);
     }
+
+    #[test]
+    fn apply_runtime_event_returns_true_without_compositor() {
+        // When no compositor is available events cannot be applied, but the function
+        // returns `true` rather than `false` because the event was not actively
+        // *filtered* — it was simply dropped due to missing infrastructure.
+        // This documents the current behaviour so that any intentional change is visible.
+        let applied = apply_runtime_event(
+            None,
+            Event::Input(InputEvent::Keyboard(KeyboardEvent::Layout("us".into()))),
+        );
+
+        assert!(applied);
+    }
 }
