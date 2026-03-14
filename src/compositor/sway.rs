@@ -6,12 +6,12 @@ use swayipc::Connection;
 use crate::compositor::input::{Input, InputResult};
 use crate::compositor::{Compositor, CompositorResult};
 use crate::event::Event;
-use crate::event::input::InputEvent;
+use crate::event::input::{InputEvent, KeyboardEvent};
 
+use cosmic_comp_config::NumlockState;
 use cosmic_comp_config::input::{
     AccelConfig, AccelProfile, ClickMethod, ScrollConfig, ScrollMethod, TapConfig,
 };
-use cosmic_comp_config::NumlockState;
 
 #[derive(Debug, Default)]
 pub struct Sway {
@@ -121,6 +121,33 @@ impl Sway {
             .collect::<Vec<_>>()
             .join(",")
     }
+
+    fn normalize_kb_string(value: &str) -> String {
+        let trimmed = value.trim();
+        trimmed.to_string()
+    }
+
+    fn keyboard_string_command(setting: &str, value: &str) -> String {
+        let normalized = Self::normalize_kb_string(value);
+        if normalized.is_empty() {
+            format!("input type:keyboard {setting} \"\"")
+        } else {
+            format!("input type:keyboard {setting} {normalized}")
+        }
+    }
+
+    fn keyboard_options_command(options: Option<String>) -> String {
+        let cleaned = options
+            .as_deref()
+            .map(Self::normalize_kb_options)
+            .unwrap_or_default();
+
+        if cleaned.is_empty() {
+            "input type:keyboard xkb_options \"\"".into()
+        } else {
+            format!("input type:keyboard xkb_options \"{cleaned}\"")
+        }
+    }
 }
 
 impl Compositor for Sway {
@@ -141,7 +168,10 @@ impl Compositor for Sway {
     }
 
     fn supports(&self, event: &Event) -> bool {
-        matches!(event, Event::Input(_))
+        !matches!(
+            event,
+            Event::Input(InputEvent::Keyboard(KeyboardEvent::NumLock(_)))
+        )
     }
 
     fn apply_event(&self, event: Event) -> CompositorResult {
@@ -165,27 +195,23 @@ impl Compositor for Sway {
 // define a error variants for such errors and send upwards
 impl Input for Sway {
     fn keyboard_rules(&self, rules: String) -> InputResult {
-        self.run_command(format!("input type:keyboard xkb_rules {rules}"))
+        self.run_command(Self::keyboard_string_command("xkb_rules", &rules))
     }
 
     fn keyboard_model(&self, model: String) -> InputResult {
-        self.run_command(format!("input type:keyboard xkb_model {model}"))
+        self.run_command(Self::keyboard_string_command("xkb_model", &model))
     }
 
     fn keyboard_layout(&self, layout: String) -> InputResult {
-        self.run_command(format!("input type:keyboard xkb_layout {layout}"))
+        self.run_command(Self::keyboard_string_command("xkb_layout", &layout))
     }
 
     fn keyboard_variant(&self, variant: String) -> InputResult {
-        self.run_command(format!("input type:keyboard xkb_variant {variant}"))
+        self.run_command(Self::keyboard_string_command("xkb_variant", &variant))
     }
 
     fn keyboard_options(&self, options: Option<String>) -> InputResult {
-        if let Some(options) = options {
-            let cleaned = Self::normalize_kb_options(&options);
-            return self.run_command(format!("input type:keyboard xkb_options {cleaned}"));
-        }
-        Ok(())
+        self.run_command(Self::keyboard_options_command(options))
     }
 
     fn keyboard_repeat_delay(&self, delay: u32) -> InputResult {
@@ -198,8 +224,13 @@ impl Input for Sway {
 
     fn numslock_state(&self, state: NumlockState) -> InputResult {
         match state {
-            NumlockState::BootOn => self.run_command("input type:keyboard xkb_numlock enabled".to_string()),
-            NumlockState::BootOff => self.run_command("input type:keyboard xkb_numlock disabled".to_string()),
+            // Sway does not expose a supported runtime IPC path for xkb_numlock.
+            NumlockState::BootOn => Err(Box::new(std::io::Error::other(
+                "Sway does not support runtime numlock synchronization",
+            ))),
+            NumlockState::BootOff => Err(Box::new(std::io::Error::other(
+                "Sway does not support runtime numlock synchronization",
+            ))),
             NumlockState::LastBoot => Ok(()), // Don't change
         }
     }
@@ -426,4 +457,63 @@ impl Input for Sway {
     //     dbg!("Sway: mouse map_to_output not supported");
     //     Ok(())
     // }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Sway;
+    use crate::compositor::Compositor;
+    use crate::event::Event;
+    use crate::event::input::{InputEvent, KeyboardEvent};
+    use cosmic_comp_config::NumlockState;
+
+    #[test]
+    fn normalize_kb_string_skips_empty_values() {
+        assert_eq!(Sway::normalize_kb_string(""), "");
+        assert_eq!(Sway::normalize_kb_string("   "), "");
+    }
+
+    #[test]
+    fn normalize_kb_string_trims_non_empty_values() {
+        assert_eq!(Sway::normalize_kb_string(" us "), "us");
+        assert_eq!(Sway::normalize_kb_string("altgr-intl"), "altgr-intl");
+    }
+
+    #[test]
+    fn keyboard_layout_preserves_empty_reset_value() {
+        assert_eq!(
+            Sway::keyboard_string_command("xkb_layout", ""),
+            "input type:keyboard xkb_layout \"\""
+        );
+        assert_eq!(
+            Sway::keyboard_string_command("xkb_layout", " us "),
+            "input type:keyboard xkb_layout us"
+        );
+    }
+
+    #[test]
+    fn keyboard_options_preserves_empty_reset_value() {
+        assert_eq!(
+            Sway::keyboard_options_command(None),
+            "input type:keyboard xkb_options \"\""
+        );
+        assert_eq!(
+            Sway::keyboard_options_command(Some("".into())),
+            "input type:keyboard xkb_options \"\""
+        );
+        assert_eq!(
+            Sway::keyboard_options_command(Some(" grp:alt_shift_toggle , compose:rctrl ".into())),
+            "input type:keyboard xkb_options \"grp:alt_shift_toggle,compose:rctrl\""
+        );
+    }
+
+    #[test]
+    fn supports_rejects_numlock_events() {
+        let compositor = Sway::new();
+        let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::NumLock(
+            NumlockState::BootOn,
+        )));
+
+        assert!(!compositor.supports(&event));
+    }
 }

@@ -21,7 +21,10 @@ Compositor identification is done in `identifier.rs` and the result is used to i
 
 - Rust (edition 2024)
 - A COSMIC session with `cosmic-config` available
-- Supported compositor (currently Hyprland)
+- Supported compositor backend in tree:
+  - Hyprland
+  - Sway
+  - GNOME input mapping is partial and currently limited to mouse/touchpad paths
 
 ## Build
 
@@ -35,7 +38,9 @@ cargo build
 cargo run
 ```
 
-Cosmolith will print detected compositor information and apply updates as configuration changes are observed.
+Cosmolith will print detected compositor information, apply the current COSMIC keyboard state once
+at startup on keyboard-capable backends such as Hyprland and Sway, and then continue applying
+configuration updates as changes are observed.
 
 ## Contributing
 
