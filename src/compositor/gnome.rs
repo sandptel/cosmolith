@@ -1,9 +1,9 @@
 use crate::compositor::input::{Input, InputResult};
 use crate::compositor::{Compositor, CompositorResult};
-use crate::event::input::InputEvent;
 use crate::event::Event;
-use gio::prelude::*;
+use crate::event::input::InputEvent;
 use gio::Settings;
+use gio::prelude::*;
 
 pub struct Gnome {
     touchpad_settings: Settings,
@@ -36,11 +36,6 @@ impl Gnome {
         }
         Ok(())
     }
-
-    fn set_double(&self, settings: &Settings, key: &str, val: f64) -> InputResult {
-        settings.set_double(key, val)?;
-        Ok(())
-    }
 }
 
 impl Compositor for Gnome {
@@ -59,7 +54,10 @@ impl Compositor for Gnome {
     }
 
     fn supports(&self, event: &Event) -> bool {
-        matches!(event, Event::Input(_))
+        matches!(
+            event,
+            Event::Input(InputEvent::Mouse(_)) | Event::Input(InputEvent::TouchPad(_))
+        )
     }
 
     fn apply_event(&self, event: Event) -> CompositorResult {
@@ -110,5 +108,19 @@ impl Input for Gnome {
 
     fn mouse_natural_scroll(&self, enabled: Option<bool>) -> InputResult {
         self.set_opt_bool(&self.mouse_settings, "natural-scroll", enabled)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::event::input::{InputEvent, KeyboardEvent};
+
+    #[test]
+    fn supports_rejects_keyboard_events() {
+        let compositor = Gnome::new();
+        let event = Event::Input(InputEvent::Keyboard(KeyboardEvent::Layout("us".into())));
+
+        assert!(!compositor.supports(&event));
     }
 }
