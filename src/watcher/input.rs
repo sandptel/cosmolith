@@ -62,13 +62,26 @@ fn startup_effective_value<T>(
     effective: Result<T, ConfigError>,
 ) -> Result<Option<T>, ConfigError> {
     let local = startup_config_value(local)?;
-    let effective = startup_config_value(effective)?;
 
-    match (local, effective) {
-        (Some(_), Some(value)) => Ok(Some(value)),
-        (Some(local_value), None) => Ok(Some(local_value)),
-        (None, Some(_)) | (None, None) => Ok(None),
-    }
+    let local_value = match local {
+        None => return Ok(None),
+        Some(v) => v,
+    };
+
+    // A local override exists; try to resolve the effective (merged) value, but
+    // fall back to the local value when the effective layer is missing or fails.
+    let effective_value = match startup_config_value(effective) {
+        Ok(Some(v)) => v,
+        Ok(None) => local_value,
+        Err(err) => {
+            eprintln!(
+                "Failed to read effective keyboard config, falling back to local override: {err}"
+            );
+            local_value
+        }
+    };
+
+    Ok(Some(effective_value))
 }
 
 fn startup_keyboard_events(
@@ -341,6 +354,23 @@ mod tests {
                 layout: "us".into(),
                 ..XkbConfig::default()
             }),
+        )
+        .unwrap();
+
+        assert!(matches!(value, Some(config) if config.layout == "us"));
+    }
+
+    #[test]
+    fn startup_effective_value_falls_back_to_local_when_effective_config_is_broken() {
+        let value = startup_effective_value(
+            Ok(XkbConfig {
+                layout: "us".into(),
+                ..XkbConfig::default()
+            }),
+            Err(ConfigError::GetKey(
+                "xkb_config".into(),
+                io::Error::new(io::ErrorKind::InvalidData, "corrupt effective config"),
+            )),
         )
         .unwrap();
 

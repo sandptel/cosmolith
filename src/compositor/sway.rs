@@ -136,16 +136,16 @@ impl Sway {
         }
     }
 
-    fn keyboard_options_command(options: Option<String>) -> Option<String> {
+    fn keyboard_options_command(options: Option<String>) -> String {
         let cleaned = options
             .as_deref()
             .map(Self::normalize_kb_options)
             .unwrap_or_default();
 
         if cleaned.is_empty() {
-            Some("input type:keyboard xkb_options \"\"".into())
+            "input type:keyboard xkb_options \"\"".into()
         } else {
-            Some(format!("input type:keyboard xkb_options \"{cleaned}\""))
+            format!("input type:keyboard xkb_options \"{cleaned}\"")
         }
     }
 }
@@ -211,10 +211,7 @@ impl Input for Sway {
     }
 
     fn keyboard_options(&self, options: Option<String>) -> InputResult {
-        if let Some(command) = Self::keyboard_options_command(options) {
-            return self.run_command(command);
-        }
-        Ok(())
+        self.run_command(Self::keyboard_options_command(options))
     }
 
     fn keyboard_repeat_delay(&self, delay: u32) -> InputResult {
@@ -498,15 +495,15 @@ mod tests {
     fn keyboard_options_preserves_empty_reset_value() {
         assert_eq!(
             Sway::keyboard_options_command(None),
-            Some("input type:keyboard xkb_options \"\"".into())
+            "input type:keyboard xkb_options \"\""
         );
         assert_eq!(
             Sway::keyboard_options_command(Some("".into())),
-            Some("input type:keyboard xkb_options \"\"".into())
+            "input type:keyboard xkb_options \"\""
         );
         assert_eq!(
             Sway::keyboard_options_command(Some(" grp:alt_shift_toggle , compose:rctrl ".into())),
-            Some("input type:keyboard xkb_options \"grp:alt_shift_toggle,compose:rctrl\"".into())
+            "input type:keyboard xkb_options \"grp:alt_shift_toggle,compose:rctrl\""
         );
     }
 
