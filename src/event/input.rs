@@ -1,8 +1,8 @@
-use cosmic_comp_config::{XkbConfig, KeyboardConfig, NumlockState};
 use cosmic_comp_config::input::{
     AccelConfig, ClickMethod, DeviceState, InputConfig, ScrollConfig, ScrollMethod, TapButtonMap,
     TapConfig,
 };
+use cosmic_comp_config::{KeyboardConfig, NumlockState, XkbConfig};
 
 use super::Event;
 
@@ -470,6 +470,47 @@ impl KeyboardEvent {
 
         events
     }
+
+    pub fn bootstrap_from(new: XkbConfig) -> Vec<Event> {
+        let mut events = Vec::new();
+
+        let rules = Event::Input(InputEvent::Keyboard(KeyboardEvent::Rules(
+            new.rules.clone(),
+        )));
+        events.push(rules);
+
+        let model = Event::Input(InputEvent::Keyboard(KeyboardEvent::Model(
+            new.model.clone(),
+        )));
+        events.push(model);
+
+        let layout = Event::Input(InputEvent::Keyboard(KeyboardEvent::Layout(
+            new.layout.clone(),
+        )));
+        events.push(layout);
+
+        let variant = Event::Input(InputEvent::Keyboard(KeyboardEvent::Variant(
+            new.variant.clone(),
+        )));
+        events.push(variant);
+
+        let options = Event::Input(InputEvent::Keyboard(KeyboardEvent::Options(
+            new.options.clone(),
+        )));
+        events.push(options);
+
+        let delay = Event::Input(InputEvent::Keyboard(KeyboardEvent::RepeatDelay(
+            new.repeat_delay,
+        )));
+        events.push(delay);
+
+        let rate = Event::Input(InputEvent::Keyboard(KeyboardEvent::RepeatRate(
+            new.repeat_rate,
+        )));
+        events.push(rate);
+
+        events
+    }
 }
 
 impl KeyboardEvent {
@@ -488,5 +529,122 @@ impl KeyboardEvent {
         }
 
         events
+    }
+
+    pub fn bootstrap_from_keyboard_config(new: KeyboardConfig) -> Vec<Event> {
+        vec![Event::Input(InputEvent::Keyboard(KeyboardEvent::NumLock(
+            new.numlock_state,
+        )))]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bootstrap_from_emits_full_keyboard_snapshot() {
+        let config = XkbConfig {
+            rules: "evdev".into(),
+            model: "pc105".into(),
+            layout: "us".into(),
+            variant: "altgr-intl".into(),
+            options: Some("lv3:ralt_switch".into()),
+            repeat_delay: 300,
+            repeat_rate: 25,
+        };
+
+        let events = KeyboardEvent::bootstrap_from(config);
+
+        assert_eq!(events.len(), 7);
+        assert!(matches!(
+            events.first(),
+            Some(Event::Input(InputEvent::Keyboard(KeyboardEvent::Rules(rules))))
+                if rules == "evdev"
+        ));
+        assert!(matches!(
+            events.get(1),
+            Some(Event::Input(InputEvent::Keyboard(KeyboardEvent::Model(model))))
+                if model == "pc105"
+        ));
+        assert!(matches!(
+            events.get(2),
+            Some(Event::Input(InputEvent::Keyboard(KeyboardEvent::Layout(layout))))
+                if layout == "us"
+        ));
+        assert!(matches!(
+            events.get(3),
+            Some(Event::Input(InputEvent::Keyboard(KeyboardEvent::Variant(variant))))
+                if variant == "altgr-intl"
+        ));
+        assert!(matches!(
+            events.get(4),
+            Some(Event::Input(InputEvent::Keyboard(KeyboardEvent::Options(Some(options)))))
+                if options == "lv3:ralt_switch"
+        ));
+        assert!(matches!(
+            events.get(5),
+            Some(Event::Input(InputEvent::Keyboard(
+                KeyboardEvent::RepeatDelay(300)
+            )))
+        ));
+        assert!(matches!(
+            events.get(6),
+            Some(Event::Input(InputEvent::Keyboard(
+                KeyboardEvent::RepeatRate(25)
+            )))
+        ));
+    }
+
+    #[test]
+    fn bootstrap_from_preserves_reset_shaped_values() {
+        let config = XkbConfig::default();
+
+        let events = KeyboardEvent::bootstrap_from(config);
+
+        assert_eq!(events.len(), 7);
+        assert!(matches!(
+            events.first(),
+            Some(Event::Input(InputEvent::Keyboard(KeyboardEvent::Rules(rules))))
+                if rules.is_empty()
+        ));
+        assert!(matches!(
+            events.get(1),
+            Some(Event::Input(InputEvent::Keyboard(KeyboardEvent::Model(model))))
+                if model.is_empty()
+        ));
+        assert!(matches!(
+            events.get(2),
+            Some(Event::Input(InputEvent::Keyboard(KeyboardEvent::Layout(layout))))
+                if layout.is_empty()
+        ));
+        assert!(matches!(
+            events.get(3),
+            Some(Event::Input(InputEvent::Keyboard(KeyboardEvent::Variant(variant))))
+                if variant.is_empty()
+        ));
+        assert!(matches!(
+            events.get(4),
+            Some(Event::Input(InputEvent::Keyboard(KeyboardEvent::Options(
+                None
+            ))))
+        ));
+    }
+
+    #[test]
+    fn bootstrap_from_keyboard_config_emits_numlock_state() {
+        let config = KeyboardConfig {
+            numlock_state: NumlockState::BootOn,
+        };
+
+        let events = KeyboardEvent::bootstrap_from_keyboard_config(config);
+
+        assert_eq!(events.len(), 1);
+        assert!(matches!(
+            events.first(),
+            Some(Event::Input(InputEvent::Keyboard(KeyboardEvent::NumLock(
+                NumlockState::BootOn
+            ))))
+        ));
     }
 }
