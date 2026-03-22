@@ -149,6 +149,7 @@ impl Compositor for Sway {
             Event::Input(InputEvent::TouchPad(ev)) => self.apply_touchpad_event(ev),
             Event::Input(InputEvent::Mouse(ev)) => self.apply_mouse_event(ev),
             Event::Input(InputEvent::Keyboard(ev)) => self.apply_keyboard_event(ev),
+            Event::Shortcut(_) => Ok(()),
         }
     }
 
