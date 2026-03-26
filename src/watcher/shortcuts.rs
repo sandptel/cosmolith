@@ -29,7 +29,7 @@ pub fn start_shortcuts_watcher(
         for (binding, action) in initial_shortcuts.iter() {
             let _ = sender.send(Event::Shortcut(ShortcutEvent::Add {
                 binding: binding.clone(),
-                action: action.clone(),
+                shortcut: action.clone().into(),
             }));
         }
     }
@@ -46,6 +46,7 @@ pub fn start_shortcuts_watcher(
                     for (binding, action) in old_shortcuts.iter() {
                         if !new_shortcuts.contains_key(binding) || new_shortcuts.get(binding) != Some(action) {
                             let _ = sender.send(Event::Shortcut(ShortcutEvent::Remove {
+                                shortcut: action.clone().into(),
                                 binding: binding.clone(),
                             }));
                         }
@@ -54,8 +55,8 @@ pub fn start_shortcuts_watcher(
                     for (binding, action) in new_shortcuts.iter() {
                         if !old_shortcuts.contains_key(binding) || old_shortcuts.get(binding) != Some(action) {
                             let _ = sender.send(Event::Shortcut(ShortcutEvent::Add {
+                                shortcut: action.clone().into(),
                                 binding: binding.clone(),
-                                action: action.clone(),
                             }));
                         }
                     }
