@@ -7,6 +7,8 @@ use crate::compositor::input::{Input, InputResult};
 use crate::compositor::{Compositor, CompositorResult};
 use crate::event::Event;
 use crate::event::input::InputEvent;
+use crate::event::shortcuts::ShortcutEvent;
+use crate::compositor::shortcut::Shortcut;
 
 use cosmic_comp_config::input::{
     AccelConfig, AccelProfile, ClickMethod, ScrollConfig, ScrollMethod, TapConfig,
@@ -121,6 +123,85 @@ impl Sway {
             .collect::<Vec<_>>()
             .join(",")
     }
+
+    fn format_binding(binding: &cosmic_settings_config::shortcuts::Binding) -> String {
+        let mut parts = Vec::new();
+        let mods = &binding.modifiers;
+        if mods.logo { parts.push("Mod4".to_string()); }
+        if mods.alt { parts.push("Mod1".to_string()); }
+        if mods.shift { parts.push("Shift".to_string()); }
+        if mods.ctrl { parts.push("Ctrl".to_string()); }
+        
+        if let Some(ref k) = binding.key {
+             parts.push(xkbcommon::xkb::keysym_get_name(*k));
+        } else if let Some(code) = binding.keycode {
+             parts.push(code.to_string());
+        }
+        
+        parts.join("+")
+    }
+
+    fn format_action(action: &crate::event::shortcuts::Shortcut) -> String {
+        use crate::event::shortcuts::{Shortcut, Direction, FocusDirection, SystemAction};
+
+        match action {
+            Shortcut::Close => "kill".to_string(),
+            Shortcut::Focus(FocusDirection::Left) => "focus left".to_string(),
+            Shortcut::Focus(FocusDirection::Right) => "focus right".to_string(),
+            Shortcut::Focus(FocusDirection::Up) => "focus up".to_string(),
+            Shortcut::Focus(FocusDirection::Down) => "focus down".to_string(),
+            Shortcut::Move(Direction::Left) => "move left".to_string(),
+            Shortcut::Move(Direction::Right) => "move right".to_string(),
+            Shortcut::Move(Direction::Up) => "move up".to_string(),
+            Shortcut::Move(Direction::Down) => "move down".to_string(),
+            Shortcut::Workspace(_) => String::new(), 
+            Shortcut::MoveToWorkspace(id) => format!("move container to workspace {}", id),
+            Shortcut::Terminate => "exec swaymsg exit".to_string(),
+            Shortcut::Custom(cmd) => format!("exec {}", cmd),
+            Shortcut::System(sys_action) => match sys_action {
+                SystemAction::Launcher => "exec /usr/bin/cosmic-launcher".to_string(),
+                SystemAction::AppLibrary => "exec /usr/bin/cosmic-app-library".to_string(),
+                SystemAction::Terminal => "exec /usr/bin/cosmic-term".to_string(),
+                SystemAction::WebBrowser => "exec google-chrome".to_string(),
+                SystemAction::HomeFolder => "exec xdg-open ~".to_string(),
+                SystemAction::Screenshot => "exec cosmic-screenshot".to_string(),
+                SystemAction::BrightnessDown => "exec brightnessctl s 5%-".to_string(),
+                SystemAction::BrightnessUp => "exec brightnessctl s +5%".to_string(),
+                SystemAction::VolumeLower => "exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-".to_string(),
+                SystemAction::VolumeRaise => "exec wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+".to_string(),
+                SystemAction::Mute => "exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle".to_string(),
+                SystemAction::MuteMic => "exec wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle".to_string(),
+                SystemAction::PlayPause => "exec playerctl play-pause".to_string(),
+                SystemAction::PlayNext => "exec playerctl next".to_string(),
+                SystemAction::PlayPrev => "exec playerctl previous".to_string(),
+                SystemAction::LockScreen => "exec swaylock".to_string(),
+                SystemAction::LogOut => "exec swaymsg exit".to_string(),
+                SystemAction::PowerOff => "exec systemctl poweroff".to_string(),
+                SystemAction::Suspend => "exec systemctl suspend".to_string(),
+                _ => String::new(),
+            },
+            _ => String::new(),
+        }
+    }
+}
+
+impl Shortcut for Sway {
+    fn add_shortcut(&self, shortcut: crate::event::shortcuts::Shortcut, binding: cosmic_settings_config::shortcuts::Binding) -> CompositorResult {
+        let keys = Self::format_binding(&binding);
+        let cmd = Self::format_action(&shortcut);
+        if !keys.is_empty() && !cmd.is_empty() {
+            self.run_command(format!("bindsym {} {}", keys, cmd))?;
+        }
+        Ok(())
+    }
+
+    fn remove_shortcut(&self, _shortcut: crate::event::shortcuts::Shortcut, binding: cosmic_settings_config::shortcuts::Binding) -> CompositorResult {
+        let keys = Self::format_binding(&binding);
+        if !keys.is_empty() {
+            self.run_command(format!("unbindsym {}", keys))?;
+        }
+        Ok(())
+    }
 }
 
 impl Compositor for Sway {
@@ -141,7 +222,7 @@ impl Compositor for Sway {
     }
 
     fn supports(&self, event: &Event) -> bool {
-        matches!(event, Event::Input(_))
+        matches!(event, Event::Input(_) | Event::Shortcut(_))
     }
 
     fn apply_event(&self, event: Event) -> CompositorResult {
@@ -149,6 +230,7 @@ impl Compositor for Sway {
             Event::Input(InputEvent::TouchPad(ev)) => self.apply_touchpad_event(ev),
             Event::Input(InputEvent::Mouse(ev)) => self.apply_mouse_event(ev),
             Event::Input(InputEvent::Keyboard(ev)) => self.apply_keyboard_event(ev),
+            Event::Shortcut(ev) => self.apply_shortcut_event(ev),
         }
     }
 

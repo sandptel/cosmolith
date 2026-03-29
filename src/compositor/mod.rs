@@ -3,6 +3,7 @@ pub mod hyprland;
 pub mod input;
 pub mod kde;
 pub mod sway;
+pub mod shortcut;
 use crate::event::Event;
 use std::error::Error;
 pub type CompositorResult = Result<(), Box<dyn Error + Send + Sync>>;

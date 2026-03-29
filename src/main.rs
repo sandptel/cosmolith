@@ -17,6 +17,8 @@ use identifier::get_current_session;
 mod compositor;
 use compositor::init_compositor;
 
+use watcher::shortcuts::start_shortcuts_watcher;
+
 fn main() -> Result<(), Box<dyn Error>> {
     let _config = Config::new("com.system76.CosmicComp", 1)?;
     // Channel used to receive change notifications from the watcher callback.
@@ -24,6 +26,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let tx = Arc::new(Mutex::new(tx));
 
     let _watcher = start_input_watcher(&tx)?;
+    let _shortcuts_watcher = start_shortcuts_watcher(&tx)?;
 
     println!("Watching for configuration changes…");
 
