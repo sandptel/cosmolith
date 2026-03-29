@@ -47,6 +47,30 @@ pub struct InputState {
     numslock: Option<KeyboardConfig>,
 }
 
+fn startup_keyboard_events(config: XkbConfig) -> Vec<Event> {
+    KeyboardEvent::from(XkbConfig::default(), config)
+}
+
+fn send_events(tx: &Arc<Mutex<Sender<Event>>>, events: Vec<Event>) -> Result<(), Box<dyn Error>> {
+    if let Ok(sender) = tx.lock() {
+        for event in events {
+            sender.send(event)?;
+        }
+    }
+
+    Ok(())
+}
+
+pub fn send_initial_input_events(tx: &Arc<Mutex<Sender<Event>>>) -> Result<(), Box<dyn Error>> {
+    let config = Config::new(INPUTNAMESPACE, VERSION)?;
+
+    if let Ok(current_keyboard) = config.get::<XkbConfig>("xkb_config") {
+        send_events(tx, startup_keyboard_events(current_keyboard))?;
+    }
+
+    Ok(())
+}
+
 pub fn start_input_watcher(
     tx: &Arc<Mutex<Sender<Event>>>,
 ) -> Result<Box<dyn std::any::Any + Send>, Box<dyn Error>> {
