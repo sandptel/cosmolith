@@ -278,13 +278,14 @@ impl Input for Sway {
         self.run_command(format!("input type:keyboard repeat_rate {rate}"))
     }
 
-    fn numslock_state(&self, state: NumlockState) -> InputResult {
-        match state {
-            NumlockState::BootOn => self.run_command("input type:keyboard xkb_numlock enabled".to_string()),
-            NumlockState::BootOff => self.run_command("input type:keyboard xkb_numlock disabled".to_string()),
-            NumlockState::LastBoot => Ok(()), // Don't change
-        }
-    }
+    //this is just a config command in sway not ipc
+    // fn numslock_state(&self, state: NumlockState) -> InputResult {
+    //     match state {
+    //         NumlockState::BootOn => self.run_command("input type:keyboard xkb_numlock enabled".to_string()),
+    //         NumlockState::BootOff => self.run_command("input type:keyboard xkb_numlock disabled".to_string()),
+    //         NumlockState::LastBoot => Ok(()), // Don't change
+    //     }
+    // }
 
     // fn touchpad_state(&self, _state: DeviceState) -> InputResult {
     //     // TODO: Requires device-specific identifiers; DisabledOnExternalMouse not supported.
