@@ -7,7 +7,7 @@ use std::{
 };
 
 mod watcher;
-use watcher::input::start_input_watcher;
+use watcher::input::{send_initial_input_events, start_input_watcher};
 mod event;
 use event::Event;
 
@@ -27,6 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let _watcher = start_input_watcher(&tx)?;
     let _shortcuts_watcher = start_shortcuts_watcher(&tx)?;
+    send_initial_input_events(&tx)?;
 
     println!("Watching for configuration changes…");
 
